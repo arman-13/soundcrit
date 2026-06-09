@@ -25,7 +25,7 @@ namespace backend.Migrations
                     Content = table.Column<string>(type: "TEXT", nullable: false),
                     CoverImageUrl = table.Column<string>(type: "TEXT", nullable: false),
                     AuthorName = table.Column<string>(type: "TEXT", nullable: false),
-                    PublishedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    PublishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Tags = table.Column<string>(type: "TEXT", nullable: false),
                     IsPublished = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
@@ -69,7 +69,7 @@ namespace backend.Migrations
                     Duration = table.Column<string>(type: "TEXT", nullable: false),
                     CoverImageUrl = table.Column<string>(type: "TEXT", nullable: false),
                     AudioUrl = table.Column<string>(type: "TEXT", nullable: false),
-                    PublishedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    PublishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsPublished = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
@@ -88,7 +88,7 @@ namespace backend.Migrations
                     ThumbnailUrl = table.Column<string>(type: "TEXT", nullable: false),
                     VideoUrl = table.Column<string>(type: "TEXT", nullable: false),
                     Category = table.Column<string>(type: "TEXT", nullable: false),
-                    PublishedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    PublishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     IsPublished = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>

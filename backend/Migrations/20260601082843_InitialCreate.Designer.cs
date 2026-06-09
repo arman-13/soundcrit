@@ -42,7 +42,7 @@ namespace backend.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("PublishedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -266,7 +266,7 @@ namespace backend.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("PublishedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -349,7 +349,7 @@ namespace backend.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("PublishedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ThumbnailUrl")
                         .IsRequired()

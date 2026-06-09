@@ -1,16 +1,3 @@
-export interface Article {
-  id: number;
-  title: string;
-  slug: string;
-  summary: string;
-  content: string;
-  coverImageUrl: string;
-  authorName: string;
-  publishedAt: string;
-  tags: string;
-  isPublished: boolean;
-}
-
 export interface Track {
   id: number;
   title: string;
@@ -22,17 +9,36 @@ export interface Track {
   audioUrl: string;
   publishedAt: string;
   isPublished: boolean;
+  playCount: number;
+  isFeatured: boolean;
+  description?: string;
+  story?: string;
+  mood?: string;
 }
 
-export interface Video {
+export interface Album {
   id: number;
   title: string;
-  description: string;
-  thumbnailUrl: string;
-  videoUrl: string;
-  category: string;
-  publishedAt: string;
+  coverImageUrl: string;
+  description?: string;
+  releasedAt: string;
   isPublished: boolean;
+}
+
+export interface AlbumTrackDto {
+  trackId: number;
+  trackNumber: number;
+  title: string;
+  artist: string;
+  duration: string;
+  coverImageUrl: string;
+  audioUrl: string;
+  mood?: string;
+  playCount: number;
+}
+
+export interface AlbumWithTracks extends Album {
+  tracks: AlbumTrackDto[];
 }
 
 export interface TeamMember {
@@ -47,6 +53,16 @@ export interface TeamMember {
   linkedIn?: string;
   displayOrder: number;
   isActive: boolean;
+}
+
+export interface UserDto {
+  id: string;
+  email: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+  bio?: string;
+  createdAt: string;
 }
 
 export interface PagedResponse<T> {

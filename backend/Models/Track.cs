@@ -12,4 +12,14 @@ public class Track
     public string AudioUrl { get; set; } = string.Empty;
     public DateTime PublishedAt { get; set; }
     public bool IsPublished { get; set; }
+
+    // New fields
+    public int PlayCount { get; set; } = 0;
+    public bool IsFeatured { get; set; } = false;
+    public string? Description { get; set; }
+    public string? Story { get; set; }
+    public string? Mood { get; set; }
+
+    // Navigation
+    public ICollection<TrackAlbum> TrackAlbums { get; set; } = [];
 }

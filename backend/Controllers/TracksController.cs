@@ -1,6 +1,7 @@
 using Backend.Data;
 using Backend.DTOs;
 using Backend.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,12 +18,43 @@ public class TracksController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<PagedResponse<Track>>> GetAll(
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] bool? featured = null,
+        [FromQuery] int? albumId = null)
     {
-        var query = _db.Tracks.Where(t => t.IsPublished).OrderByDescending(t => t.PublishedAt);
+        var query = _db.Tracks.Where(t => t.IsPublished).AsQueryable();
+
+        if (featured == true)
+            query = query.Where(t => t.IsFeatured);
+
+        if (albumId.HasValue)
+            query = query.Where(t => t.TrackAlbums.Any(ta => ta.AlbumId == albumId.Value));
+
+        query = query.OrderByDescending(t => t.PublishedAt);
         var total = await query.CountAsync();
         var data = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
         return Ok(new PagedResponse<Track> { Data = data, TotalCount = total, Page = page, PageSize = pageSize });
+    }
+
+    [HttpGet("charted")]
+    public async Task<ActionResult<IEnumerable<Track>>> GetCharted()
+    {
+        var tracks = await _db.Tracks
+            .Where(t => t.IsPublished)
+            .OrderByDescending(t => t.PlayCount)
+            .Take(10)
+            .ToListAsync();
+        return Ok(tracks);
+    }
+
+    [HttpGet("featured")]
+    public async Task<ActionResult<IEnumerable<Track>>> GetFeatured()
+    {
+        var tracks = await _db.Tracks
+            .Where(t => t.IsPublished && t.IsFeatured)
+            .OrderByDescending(t => t.PublishedAt)
+            .ToListAsync();
+        return Ok(tracks);
     }
 
     [HttpGet("{id}")]
@@ -32,6 +64,17 @@ public class TracksController : ControllerBase
         return track is null ? NotFound() : Ok(track);
     }
 
+    [HttpPost("{id}/play")]
+    public async Task<IActionResult> IncrementPlay(int id)
+    {
+        var track = await _db.Tracks.FindAsync(id);
+        if (track is null) return NotFound();
+        track.PlayCount++;
+        await _db.SaveChangesAsync();
+        return Ok(new { playCount = track.PlayCount });
+    }
+
+    [Authorize]
     [HttpPost]
     public async Task<ActionResult<Track>> Create(Track track)
     {
@@ -40,6 +83,7 @@ public class TracksController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = track.Id }, track);
     }
 
+    [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, Track track)
     {
@@ -49,6 +93,7 @@ public class TracksController : ControllerBase
         return NoContent();
     }
 
+    [Authorize]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {

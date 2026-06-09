@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AudioPlayer from "@/components/AudioPlayer";
 import { AudioPlayerProvider } from "@/lib/AudioPlayerContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,12 +30,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <body className="min-h-screen flex flex-col bg-[#0a0a0a] text-[#e8e6e0]">
-        <AudioPlayerProvider>
-          <Header />
-          <main className="flex-1 pb-20">{children}</main>
-          <Footer />
-          <AudioPlayer />
-        </AudioPlayerProvider>
+        <AuthProvider>
+          <AudioPlayerProvider>
+            <Header />
+            <main className="flex-1 pb-20">{children}</main>
+            <Footer />
+            <AudioPlayer />
+          </AudioPlayerProvider>
+        </AuthProvider>
       </body>
     </html>
   );
