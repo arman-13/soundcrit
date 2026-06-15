@@ -1,9 +1,13 @@
 export const dynamic = "force-dynamic";
 
 import { getTrack } from "@/lib/api";
+import BackButton from "./BackButton";
+import Link from "next/link";
 import TrackDetailPlayer from "./TrackDetailPlayer";
+import StorySection from "./StorySection";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import { StoryBlock } from "@/types";
 
 export default async function TrackPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,8 +21,14 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
 
   const moods = track.mood?.split(",").map((m) => m.trim()).filter(Boolean) ?? [];
 
+  let storyBlocks: StoryBlock[] = [];
+  if (track.storyBlocks) {
+    try { storyBlocks = JSON.parse(track.storyBlocks); } catch {}
+  }
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-20">
+      <BackButton />
       {/* Cover + player */}
       <div className="flex flex-col md:flex-row gap-8 mb-16">
         <div className="relative w-full md:w-56 aspect-square rounded-lg overflow-hidden bg-white/5 shrink-0">
@@ -27,7 +37,9 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
         <div className="flex flex-col justify-end">
           <p className="text-xs tracking-widest uppercase text-white/25 mb-3">{track.genre}</p>
           <h1 className="text-3xl md:text-4xl font-light text-white/90 leading-tight mb-2">{track.title}</h1>
-          <p className="text-base text-white/45 mb-4">{track.artist}</p>
+          <Link href={`/artists/${encodeURIComponent(track.artist)}`} className="text-base text-white/45 hover:text-white/70 mb-4 transition-colors">
+            {track.artist}
+          </Link>
           {moods.length > 0 && (
             <div className="flex gap-2 flex-wrap mb-6">
               {moods.map((m) => (
@@ -49,8 +61,13 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
         </p>
       )}
 
-      {/* Story / liner notes */}
-      {track.story && (
+      {/* Story blocks */}
+      {storyBlocks.length > 0 && (
+        <StorySection blocks={storyBlocks} audioUrl={track.audioUrl} />
+      )}
+
+      {/* Legacy liner notes (markdown) */}
+      {track.story && storyBlocks.length === 0 && (
         <div>
           <h2 className="text-xs tracking-widest uppercase text-white/25 mb-6">Liner Notes</h2>
           <div

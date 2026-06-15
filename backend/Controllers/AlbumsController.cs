@@ -16,11 +16,18 @@ public class AlbumsController : ControllerBase
     public AlbumsController(AppDbContext db) => _db = db;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Album>>> GetAll()
+    public async Task<ActionResult<IEnumerable<AlbumSummaryDto>>> GetAll([FromQuery] string? artist = null)
     {
-        var albums = await _db.Albums
-            .Where(a => a.IsPublished)
+        var query = _db.Albums.Where(a => a.IsPublished).AsQueryable();
+        if (artist is not null)
+            query = query.Where(a => a.TrackAlbums.Any(ta => ta.Track.ArtistId == artist));
+
+        var albums = await query
             .OrderByDescending(a => a.ReleasedAt)
+            .Select(a => new AlbumSummaryDto(
+                a.Id, a.Title, a.CoverImageUrl, a.Description,
+                a.ReleasedAt, a.IsPublished,
+                a.TrackAlbums.Count))
             .ToListAsync();
         return Ok(albums);
     }
@@ -62,11 +69,13 @@ public class AlbumsController : ControllerBase
 
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<Album>> Create(Album album)
+    public async Task<ActionResult> Create(Album album)
     {
+        album.TrackAlbums = [];
+        album.ReleasedAt = DateTime.SpecifyKind(album.ReleasedAt, DateTimeKind.Utc);
         _db.Albums.Add(album);
         await _db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = album.Id }, album);
+        return CreatedAtAction(nameof(GetById), new { id = album.Id }, new { album.Id });
     }
 
     [Authorize]
@@ -74,6 +83,7 @@ public class AlbumsController : ControllerBase
     public async Task<IActionResult> Update(int id, Album album)
     {
         if (id != album.Id) return BadRequest();
+        album.ReleasedAt = DateTime.SpecifyKind(album.ReleasedAt, DateTimeKind.Utc);
         _db.Entry(album).State = EntityState.Modified;
         await _db.SaveChangesAsync();
         return NoContent();

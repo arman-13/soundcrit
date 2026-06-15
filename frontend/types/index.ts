@@ -1,3 +1,13 @@
+export interface StoryBlock {
+  id: string;
+  type: "text" | "image" | "image_pair" | "video" | "quote" | "divider";
+  timestamp?: number | null;
+  content?: string;
+  url?: string;
+  caption?: string;
+  images?: { url: string; caption?: string }[];
+}
+
 export interface Track {
   id: number;
   title: string;
@@ -14,6 +24,7 @@ export interface Track {
   description?: string;
   story?: string;
   mood?: string;
+  storyBlocks?: string | null;
 }
 
 export interface Album {
@@ -23,6 +34,15 @@ export interface Album {
   description?: string;
   releasedAt: string;
   isPublished: boolean;
+  trackCount?: number;
+}
+
+export interface PublicUserDto {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl?: string;
+  bio?: string;
 }
 
 export interface AlbumTrackDto {

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Backend.Data;
 using Backend.DTOs;
 using Backend.Models;
@@ -20,9 +21,14 @@ public class TracksController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] bool? featured = null,
-        [FromQuery] int? albumId = null)
+        [FromQuery] int? albumId = null,
+        [FromQuery] bool all = false,
+        [FromQuery] string? artist = null)
     {
-        var query = _db.Tracks.Where(t => t.IsPublished).AsQueryable();
+        var query = _db.Tracks.AsQueryable();
+        if (!all) query = query.Where(t => t.IsPublished);
+        if (artist is not null)
+            query = query.Where(t => t.ArtistId == artist);
 
         if (featured == true)
             query = query.Where(t => t.IsFeatured);
@@ -76,11 +82,13 @@ public class TracksController : ControllerBase
 
     [Authorize]
     [HttpPost]
-    public async Task<ActionResult<Track>> Create(Track track)
+    public async Task<ActionResult> Create(Track track)
     {
+        track.ArtistId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        track.TrackAlbums = [];
         _db.Tracks.Add(track);
         await _db.SaveChangesAsync();
-        return CreatedAtAction(nameof(GetById), new { id = track.Id }, track);
+        return CreatedAtAction(nameof(GetById), new { id = track.Id }, new { track.Id });
     }
 
     [Authorize]
@@ -88,6 +96,10 @@ public class TracksController : ControllerBase
     public async Task<IActionResult> Update(int id, Track track)
     {
         if (id != track.Id) return BadRequest();
+        // Preserve the original ArtistId — don't let the client overwrite it
+        var existing = await _db.Tracks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
+        if (existing is null) return NotFound();
+        track.ArtistId = existing.ArtistId;
         _db.Entry(track).State = EntityState.Modified;
         await _db.SaveChangesAsync();
         return NoContent();

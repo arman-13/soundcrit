@@ -1,4 +1,4 @@
-import { Album, AlbumWithTracks, PagedResponse, TeamMember, Track } from "@/types";
+import { Album, AlbumWithTracks, PagedResponse, PublicUserDto, TeamMember, Track } from "@/types";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
@@ -7,7 +7,11 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
     next: { revalidate: 60 },
     ...options,
   });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`API error: ${res.status} — ${body}`);
+  }
+  if (res.status === 204) return null as T;
   return res.json();
 }
 
@@ -55,7 +59,7 @@ export const deleteTrack = (id: number, token: string) =>
   });
 
 export const getAllTracksAdmin = (token: string) =>
-  fetchApi<PagedResponse<Track>>(`/api/tracks?pageSize=100`, {
+  fetchApi<PagedResponse<Track>>(`/api/tracks?pageSize=100&all=true`, {
     headers: authHeaders(token),
     cache: "no-store",
   });
@@ -99,6 +103,16 @@ export const removeTrackFromAlbum = (albumId: number, trackId: number, token: st
     method: "DELETE",
     headers: authHeaders(token),
   });
+
+// ── Artist (public) ───────────────────────────────────────────────────────────
+export const getArtistProfile = (name: string) =>
+  fetchApi<PublicUserDto>(`/api/users/${encodeURIComponent(name)}`);
+
+export const getArtistTracks = (artist: string) =>
+  fetchApi<PagedResponse<Track>>(`/api/tracks?artist=${encodeURIComponent(artist)}&pageSize=100`);
+
+export const getArtistAlbums = (artist: string) =>
+  fetchApi<Album[]>(`/api/albums?artist=${encodeURIComponent(artist)}`);
 
 // ── Team ─────────────────────────────────────────────────────────────────────
 export const getTeam = () =>

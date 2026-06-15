@@ -69,7 +69,9 @@ export default function TrackCard({ track, queue }: Props) {
             {track.title}
           </h3>
         </Link>
-        <p className="text-xs text-white/35 truncate mt-0.5">{track.artist}</p>
+        <Link href={`/artists/${encodeURIComponent(track.artist)}`} className="text-xs text-white/35 hover:text-white/60 truncate mt-0.5 transition-colors block">
+          {track.artist}
+        </Link>
         {moods.length > 0 && (
           <div className="flex gap-1 flex-wrap mt-2">
             {moods.slice(0, 2).map((m) => (

@@ -3,15 +3,46 @@
 import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+async function uploadImage(file: File, token: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/api/upload/image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  const { url } = await res.json();
+  return url;
+}
 
 export default function ProfilePage() {
-  const { user, loading, updateProfile } = useAuth();
+  const { user, token, loading, updateProfile } = useAuth();
   const router = useRouter();
   const [form, setForm] = useState({ displayName: "", bio: "", avatarUrl: "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const avatarRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarFile = async (file: File) => {
+    if (!token) return;
+    setUploading(true);
+    setError("");
+    try {
+      const url = await uploadImage(file, token);
+      setForm((p) => ({ ...p, avatarUrl: url }));
+    } catch {
+      setError("Image upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -86,14 +117,31 @@ export default function ProfilePage() {
           />
         </div>
         <div>
-          <label className="block text-xs tracking-widest uppercase text-white/35 mb-2">Avatar URL</label>
-          <input
-            type="url"
-            value={form.avatarUrl}
-            onChange={(e) => setForm((p) => ({ ...p, avatarUrl: e.target.value }))}
-            className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-sm text-white/80 focus:outline-none focus:border-white/30 transition-colors"
-            placeholder="https://..."
-          />
+          <label className="block text-xs tracking-widest uppercase text-white/35 mb-2">Avatar</label>
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <input
+                ref={avatarRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleAvatarFile(f); }}
+              />
+              <button
+                type="button"
+                onClick={() => avatarRef.current?.click()}
+                disabled={uploading}
+                className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50"
+              >
+                {uploading ? "Uploading…" : "Choose image file…"}
+              </button>
+            </div>
+            {form.avatarUrl && (
+              <div className="relative w-14 h-14 rounded-full overflow-hidden shrink-0 bg-white/5">
+                <Image src={form.avatarUrl} alt="avatar preview" fill className="object-cover" />
+              </div>
+            )}
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-400/80">{error}</p>}
@@ -101,7 +149,7 @@ export default function ProfilePage() {
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || uploading}
           className="bg-white text-black text-sm font-medium px-6 py-3 rounded hover:bg-white/90 transition-colors disabled:opacity-50"
         >
           {saving ? "Saving…" : "Save changes"}

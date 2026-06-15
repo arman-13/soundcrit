@@ -9,7 +9,7 @@ export default async function MusicPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-20">
       <div className="mb-16">
-        <p className="text-xs tracking-widest uppercase text-white/30 mb-4">Sound</p>
+        <p className="text-xs tracking-widest uppercase text-white/30 mb-4">New Releases</p>
         <h1 className="text-4xl font-light text-white/90">Music</h1>
       </div>
       <MusicGrid tracks={tracks} />

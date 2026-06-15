@@ -32,3 +32,11 @@ public record UserDto(
     string? Bio,
     DateTime CreatedAt
 );
+
+public record PublicUserDto(
+    string Id,
+    string Username,
+    string DisplayName,
+    string? AvatarUrl,
+    string? Bio
+);

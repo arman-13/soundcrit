@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   getAllTracksAdmin, deleteTrack, updateTrack,
   getAlbums, createAlbum, updateAlbum, deleteAlbum,
@@ -11,6 +11,22 @@ import {
 import { Album, Track } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
+import StoryBlockEditor from "./StoryBlockEditor";
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
+
+async function uploadFile(file: File, type: "image" | "audio", token: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/api/upload/${type}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  const { url } = await res.json();
+  return url;
+}
 
 type View = "tracks" | "albums" | "upload" | "edit-track" | "create-album" | "edit-album";
 
@@ -143,8 +159,15 @@ export default function MyMusicPage() {
             onSubmit={async (data) => {
               if (!token) return;
               setBusy(true);
-              try { await createAlbum(data, token); setView("albums"); loadAlbums(); }
-              finally { setBusy(false); }
+              try {
+                await createAlbum(data, token);
+                setView("albums");
+                loadAlbums();
+              } catch (e) {
+                alert(`Failed to create album: ${e instanceof Error ? e.message : e}`);
+              } finally {
+                setBusy(false);
+              }
             }}
             busy={busy}
             onCancel={() => setView("albums")}
@@ -156,8 +179,15 @@ export default function MyMusicPage() {
             onSubmit={async (data) => {
               if (!token) return;
               setBusy(true);
-              try { await updateAlbum(editingAlbum.id, data, token); setView("albums"); loadAlbums(); }
-              finally { setBusy(false); }
+              try {
+                await updateAlbum(editingAlbum.id, data, token);
+                setView("albums");
+                loadAlbums();
+              } catch (e) {
+                alert(`Failed to save album: ${e instanceof Error ? e.message : e}`);
+              } finally {
+                setBusy(false);
+              }
             }}
             busy={busy}
             onCancel={() => setView("albums")}
@@ -296,14 +326,35 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
   onCancel: () => void;
   userDisplayName: string;
 }) {
+  const { token } = useAuth();
   const [form, setForm] = useState<Partial<Track>>(initial ?? {
     title: "", artist: userDisplayName, genre: "", duration: "", mood: "",
     audioUrl: "", coverImageUrl: "", description: "", story: "",
+    storyBlocks: null,
     isFeatured: false, isPublished: false, publishedAt: new Date().toISOString(),
   });
+  const [uploading, setUploading] = useState<{ image?: boolean; audio?: boolean }>({});
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const coverRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLInputElement>(null);
 
   const set = (f: keyof Track) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((p) => ({ ...p, [f]: e.target.value }));
+
+  const handleFileUpload = async (file: File, type: "image" | "audio") => {
+    if (!token) return;
+    setUploadError(null);
+    setUploading((u) => ({ ...u, [type]: true }));
+    try {
+      const url = await uploadFile(file, type, token);
+      if (type === "image") setForm((p) => ({ ...p, coverImageUrl: url }));
+      else setForm((p) => ({ ...p, audioUrl: url }));
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading((u) => ({ ...u, [type]: false }));
+    }
+  };
 
   const textFields: { key: keyof Track; label: string; placeholder?: string }[] = [
     { key: "title", label: "Title" },
@@ -311,8 +362,6 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
     { key: "genre", label: "Genre" },
     { key: "duration", label: "Duration", placeholder: "e.g. 3:42" },
     { key: "mood", label: "Mood tags", placeholder: "e.g. melancholic,late night" },
-    { key: "audioUrl", label: "Audio URL" },
-    { key: "coverImageUrl", label: "Cover Image URL" },
     { key: "description", label: "Short description" },
   ];
 
@@ -332,13 +381,68 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
             />
           </div>
         ))}
+
+        {/* Cover Image upload */}
         <div>
-          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Liner Notes (markdown)</label>
+          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Cover Image</label>
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <input ref={coverRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "image"); }} />
+              <button type="button"
+                onClick={() => coverRef.current?.click()}
+                disabled={uploading.image}
+                className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50">
+                {uploading.image ? "Uploading…" : "Choose image file…"}
+              </button>
+              {form.coverImageUrl && (
+                <p className="text-xs text-white/25 mt-1.5 truncate">{form.coverImageUrl}</p>
+              )}
+            </div>
+            {form.coverImageUrl && (
+              <div className="relative w-14 h-14 rounded overflow-hidden shrink-0 bg-white/5">
+                <Image src={form.coverImageUrl} alt="cover preview" fill className="object-cover" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Audio upload */}
+        <div>
+          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Audio File</label>
+          <input ref={audioRef} type="file" accept=".mp3,.wav,.flac,audio/*" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "audio"); }} />
+          <button type="button"
+            onClick={() => audioRef.current?.click()}
+            disabled={uploading.audio}
+            className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50">
+            {uploading.audio ? "Uploading…" : "Choose audio file (.mp3, .wav, .flac)…"}
+          </button>
+          {form.audioUrl && (
+            <div className="mt-2">
+              <audio controls src={form.audioUrl} className="w-full h-8 opacity-70" />
+            </div>
+          )}
+        </div>
+
+        {uploadError && (
+          <p className="text-red-400/80 text-sm">{uploadError}</p>
+        )}
+
+        <div>
+          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Liner Notes (markdown, legacy)</label>
           <textarea
             value={(form.story as string) ?? ""}
             onChange={set("story")}
-            rows={5}
+            rows={3}
             className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors resize-none"
+          />
+        </div>
+        <div className="border-t border-white/8 pt-5">
+          <StoryBlockEditor
+            value={form.storyBlocks}
+            onChange={(json) => setForm((p) => ({ ...p, storyBlocks: json }))}
+            audioUrl={(form.audioUrl as string) ?? ""}
           />
         </div>
         <div className="flex gap-6">
@@ -356,7 +460,7 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
           </label>
         </div>
         <div className="flex gap-4 pt-2">
-          <button disabled={busy} onClick={() => onSubmit(form)}
+          <button disabled={busy || !!uploading.image || !!uploading.audio} onClick={() => onSubmit(form)}
             className="bg-white text-black text-sm font-medium px-5 py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-50">
             {busy ? "Saving…" : initial ? "Save changes" : "Upload"}
           </button>
@@ -374,25 +478,65 @@ function AlbumForm({ initial, onSubmit, busy, onCancel }: {
   busy: boolean;
   onCancel: () => void;
 }) {
+  const { token } = useAuth();
   const [form, setForm] = useState<Partial<Album>>(initial ?? {
     title: "", coverImageUrl: "", description: "",
     releasedAt: new Date().toISOString().slice(0, 10), isPublished: false,
   });
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const coverRef = useRef<HTMLInputElement>(null);
 
   const set = (f: keyof Album) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((p) => ({ ...p, [f]: e.target.value }));
+
+  const handleCoverUpload = async (file: File) => {
+    if (!token) return;
+    setUploadError(null);
+    setUploadingCover(true);
+    try {
+      const url = await uploadFile(file, "image", token);
+      setForm((p) => ({ ...p, coverImageUrl: url }));
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploadingCover(false);
+    }
+  };
 
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl font-light text-white/90 mb-8">{initial ? "Edit Album" : "Create Album"}</h1>
       <div className="space-y-5">
-        {(["title", "coverImageUrl"] as const).map((k) => (
-          <div key={k}>
-            <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">{k === "coverImageUrl" ? "Cover Image URL" : "Title"}</label>
-            <input type="text" value={(form[k] as string) ?? ""} onChange={set(k)}
-              className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors" />
+        <div>
+          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Title</label>
+          <input type="text" value={form.title ?? ""} onChange={set("title")}
+            className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors" />
+        </div>
+        <div>
+          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Cover Image</label>
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <input ref={coverRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f); }} />
+              <button type="button"
+                onClick={() => coverRef.current?.click()}
+                disabled={uploadingCover}
+                className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50">
+                {uploadingCover ? "Uploading…" : "Choose image file…"}
+              </button>
+              {form.coverImageUrl && (
+                <p className="text-xs text-white/25 mt-1.5 truncate">{form.coverImageUrl}</p>
+              )}
+            </div>
+            {form.coverImageUrl && (
+              <div className="relative w-14 h-14 rounded overflow-hidden shrink-0 bg-white/5">
+                <Image src={form.coverImageUrl} alt="cover preview" fill className="object-cover" />
+              </div>
+            )}
           </div>
-        ))}
+          {uploadError && <p className="text-red-400/80 text-sm mt-1">{uploadError}</p>}
+        </div>
         <div>
           <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Description</label>
           <textarea value={form.description ?? ""} onChange={set("description")} rows={3}
@@ -411,7 +555,7 @@ function AlbumForm({ initial, onSubmit, busy, onCancel }: {
           Published
         </label>
         <div className="flex gap-4 pt-2">
-          <button disabled={busy} onClick={() => onSubmit(form)}
+          <button disabled={busy || uploadingCover} onClick={() => onSubmit(form)}
             className="bg-white text-black text-sm font-medium px-5 py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-50">
             {busy ? "Saving…" : initial ? "Save changes" : "Create"}
           </button>

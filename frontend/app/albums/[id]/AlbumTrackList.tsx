@@ -65,7 +65,9 @@ export default function AlbumTrackList({ album }: { album: AlbumWithTracks }) {
                   {t.title}
                 </p>
               </Link>
-              <p className="text-xs text-white/30">{t.artist}</p>
+              <Link href={`/artists/${encodeURIComponent(t.artist)}`} className="text-xs text-white/30 hover:text-white/55 transition-colors">
+                {t.artist}
+              </Link>
             </div>
 
             {t.mood && (

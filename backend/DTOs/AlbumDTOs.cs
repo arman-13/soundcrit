@@ -2,6 +2,16 @@ using Backend.Models;
 
 namespace Backend.DTOs;
 
+public record AlbumSummaryDto(
+    int Id,
+    string Title,
+    string CoverImageUrl,
+    string? Description,
+    DateTime ReleasedAt,
+    bool IsPublished,
+    int TrackCount
+);
+
 public record AlbumWithTracksDto(
     int Id,
     string Title,

@@ -80,6 +80,16 @@ public class AuthController : ControllerBase
         return Ok(ToDto(user));
     }
 
+    [HttpGet("/api/users/{name}")]
+    public async Task<ActionResult<PublicUserDto>> GetPublicProfile(string name)
+    {
+        // Try username first, then display name
+        var user = await _userManager.FindByNameAsync(name)
+            ?? _userManager.Users.FirstOrDefault(u => u.DisplayName.ToLower() == name.ToLower());
+        if (user is null) return NotFound();
+        return Ok(new PublicUserDto(user.Id, user.UserName!, user.DisplayName, user.AvatarUrl, user.Bio));
+    }
+
     private static UserDto ToDto(ApplicationUser u) => new(
         Id: u.Id,
         Email: u.Email!,

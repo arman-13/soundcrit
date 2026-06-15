@@ -6,6 +6,7 @@ public class Track
     public string Title { get; set; } = string.Empty;
     public string AlbumTitle { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
+    public string? ArtistId { get; set; }
     public string Genre { get; set; } = string.Empty;
     public string Duration { get; set; } = string.Empty;
     public string CoverImageUrl { get; set; } = string.Empty;
@@ -19,6 +20,7 @@ public class Track
     public string? Description { get; set; }
     public string? Story { get; set; }
     public string? Mood { get; set; }
+    public string? StoryBlocks { get; set; }
 
     // Navigation
     public ICollection<TrackAlbum> TrackAlbums { get; set; } = [];
