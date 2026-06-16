@@ -68,6 +68,9 @@ export const getAllTracksAdmin = (token: string) =>
 export const getAlbums = () =>
   fetchApi<Album[]>(`/api/albums`);
 
+export const getMyAlbums = (token: string) =>
+  fetchApi<Album[]>(`/api/albums?mine=true`, { headers: { Authorization: `Bearer ${token}` } });
+
 export const getAlbum = (id: number) =>
   fetchApi<AlbumWithTracks>(`/api/albums/${id}`);
 

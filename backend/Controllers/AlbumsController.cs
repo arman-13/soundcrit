@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Backend.Data;
 using Backend.DTOs;
 using Backend.Models;
@@ -16,11 +17,23 @@ public class AlbumsController : ControllerBase
     public AlbumsController(AppDbContext db) => _db = db;
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<AlbumSummaryDto>>> GetAll([FromQuery] string? artist = null)
+    public async Task<ActionResult<IEnumerable<AlbumSummaryDto>>> GetAll(
+        [FromQuery] string? artist = null,
+        [FromQuery] bool mine = false)
     {
-        var query = _db.Albums.Where(a => a.IsPublished).AsQueryable();
-        if (artist is not null)
-            query = query.Where(a => a.TrackAlbums.Any(ta => ta.Track.ArtistId == artist));
+        IQueryable<Album> query;
+        if (mine)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId is null) return Unauthorized();
+            query = _db.Albums.Where(a => a.TrackAlbums.Any(ta => ta.Track.ArtistId == userId));
+        }
+        else
+        {
+            query = _db.Albums.Where(a => a.IsPublished);
+            if (artist is not null)
+                query = query.Where(a => a.TrackAlbums.Any(ta => ta.Track.ArtistId == artist));
+        }
 
         var albums = await query
             .OrderByDescending(a => a.ReleasedAt)

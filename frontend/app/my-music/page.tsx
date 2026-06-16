@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   getAllTracksAdmin, deleteTrack, updateTrack,
-  getAlbums, createAlbum, updateAlbum, deleteAlbum,
+  getMyAlbums, createAlbum, updateAlbum, deleteAlbum,
   createTrack, addTrackToAlbum,
 } from "@/lib/api";
 import { Album, Track } from "@/types";
@@ -50,7 +50,7 @@ export default function MyMusicPage() {
   }, [token]);
 
   const loadAlbums = useCallback(async () => {
-    try { setAlbums(await getAlbums()); } catch {}
+    try { setAlbums(await getMyAlbums(token!)); } catch {}
   }, []);
 
   useEffect(() => {
