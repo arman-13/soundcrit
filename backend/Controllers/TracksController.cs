@@ -26,9 +26,18 @@ public class TracksController : ControllerBase
         [FromQuery] string? artist = null)
     {
         var query = _db.Tracks.AsQueryable();
-        if (!all) query = query.Where(t => t.IsPublished);
-        if (artist is not null)
-            query = query.Where(t => t.ArtistId == artist);
+        if (all)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId is null) return Unauthorized();
+            query = query.Where(t => t.ArtistId == userId);
+        }
+        else
+        {
+            query = query.Where(t => t.IsPublished);
+            if (artist is not null)
+                query = query.Where(t => t.ArtistId == artist);
+        }
 
         if (featured == true)
             query = query.Where(t => t.IsFeatured);
