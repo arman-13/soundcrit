@@ -1,6 +1,5 @@
 using System.Text;
 using Backend.Data;
-using Npgsql;
 using Backend.Models;
 using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -54,13 +53,20 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:3000",
-                "https://localhost:3000",
-                builder.Configuration["AllowedOrigins:Vercel"] ?? "https://*.vercel.app"
-            )
+        policy
+            .SetIsOriginAllowed(origin =>
+            {
+                if (origin.StartsWith("http://localhost") ||
+                    origin.StartsWith("https://localhost"))
+                    return true;
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
+                    uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase))
+                    return true;
+                return false;
+            })
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .WithExposedHeaders("*");
     });
 });
 
@@ -90,6 +96,24 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Handle OPTIONS preflight manually
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == "OPTIONS")
+    {
+        context.Response.Headers.Append("Access-Control-Allow-Origin",
+            context.Request.Headers["Origin"].ToString());
+        context.Response.Headers.Append("Access-Control-Allow-Methods",
+            "GET, POST, PUT, DELETE, OPTIONS");
+        context.Response.Headers.Append("Access-Control-Allow-Headers",
+            "Content-Type, Authorization");
+        context.Response.StatusCode = 200;
+        await context.Response.CompleteAsync();
+        return;
+    }
+    await next();
+});
+
 app.UseSwagger();
 app.UseSwaggerUI();
 
@@ -101,7 +125,7 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    //db.Database.Migrate();
+    // db.Database.Migrate();
 }
 
 app.Run();
