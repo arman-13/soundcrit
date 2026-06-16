@@ -12,16 +12,16 @@ export default async function AboutPage() {
       {/* Mission */}
       <section className="mb-24 max-w-2xl">
         <p className="text-xs tracking-widest uppercase text-white/30 mb-4">Mission</p>
-        <h1 className="text-4xl font-light text-white/90 mb-8">We make music for people who still listen carefully.</h1>
+        <h1 className="text-4xl font-light text-white/90 mb-8">We share music for people who still listen carefully.</h1>
         <div className="space-y-4 text-base text-white/45 leading-relaxed">
           <p>
-            Collective is an independent music studio built around one idea: that music made without commercial pressure sounds different. Better. We work at our own pace, release on our own terms, and answer to no one except the work itself.
+            Soundcritic is a space built around one idea: that music made without commercial pressure sounds different. Better. We work at our own pace, release on our own terms, and answer to no one except the work itself.
           </p>
           <p>
-            We produce across genres — ambient, electronic, lo-fi, experimental — but the through-line is always intention. Every track has a reason to exist. We write liner notes, publish the stories behind the songs, and believe the context around music is part of the music.
+            This is a space built for artists — to present their work the way they intend it. Every track has a reason to exist. Every reason deserves to be heard. We believe the context around music is part of the music.
           </p>
           <p>
-            No label. No algorithm to feed. No tour. Just the four of us, our tools, and a shared conviction that the best creative work happens at the margins.
+            No algorithm. No noise. Just the work and the people serious about it.
           </p>
         </div>
       </section>

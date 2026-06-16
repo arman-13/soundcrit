@@ -28,7 +28,7 @@ export default function Header() {
     <header className="border-b border-white/10 sticky top-0 z-40 backdrop-blur-md bg-[#0a0a0a]/80">
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link href="/" className="text-sm font-semibold tracking-widest uppercase text-white/90 hover:text-white transition-colors">
-          Collective
+          Soundcritic
         </Link>
 
         <nav className="flex items-center gap-8">

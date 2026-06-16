@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Collective — Creative Tech Studio",
+  title: "Soundcritic — Creative Tech Studio",
   description: "Articles, music, and video from an independent creative-tech collective.",
 };
 
