@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { getAlbum } from "@/lib/api";
 import AlbumTrackList from "./AlbumTrackList";
+import AlbumComments from "./AlbumComments";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 
@@ -34,6 +35,8 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
 
       {/* Track list */}
       <AlbumTrackList album={album} />
+
+      <AlbumComments albumId={album.id} />
     </div>
   );
 }

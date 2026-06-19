@@ -2,7 +2,8 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { getComments, postComment, deleteComment } from "@/lib/api";
-import { Comment } from "@/types";
+import { useAudioPlayer } from "@/lib/AudioPlayerContext";
+import { Comment, Track } from "@/types";
 import { useEffect, useRef, useState } from "react";
 
 function fmtTime(s: number) {
@@ -11,8 +12,9 @@ function fmtTime(s: number) {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-export default function Comments({ trackId, currentTime }: { trackId: number; currentTime?: number }) {
+export default function Comments({ trackId, track }: { trackId: number; track: Track }) {
   const { user, token } = useAuth();
+  const { currentTrack, playTrack } = useAudioPlayer();
   const [comments, setComments] = useState<Comment[]>([]);
   const [content, setContent] = useState("");
   const [stampedTime, setStampedTime] = useState<number | null>(null);
@@ -22,6 +24,12 @@ export default function Comments({ trackId, currentTime }: { trackId: number; cu
   useEffect(() => {
     getComments(trackId).then(setComments).catch(() => {});
   }, [trackId]);
+
+  const getAudioCurrentTime = (): number | null => {
+    const audio = document.querySelector("audio");
+    if (!audio || audio.paused || !audio.currentTime) return null;
+    return Math.floor(audio.currentTime);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,9 +74,28 @@ export default function Comments({ trackId, currentTime }: { trackId: number; cu
               <div className="flex items-baseline gap-2 mb-1">
                 <span className="text-sm font-medium text-white/75">{c.displayName}</span>
                 {c.songTimestamp != null && (
-                  <span className="text-xs text-white/35 tabular-nums bg-white/5 px-1.5 py-0.5 rounded">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const seekTo = c.songTimestamp!;
+                      const audio = document.querySelector("audio");
+                      if (currentTrack?.id === trackId && audio) {
+                        audio.currentTime = seekTo;
+                        audio.play();
+                      } else {
+                        playTrack(track);
+                        const trySeek = () => {
+                          const a = document.querySelector("audio");
+                          if (a && a.readyState >= 2) { a.currentTime = seekTo; a.play(); }
+                          else setTimeout(trySeek, 100);
+                        };
+                        setTimeout(trySeek, 100);
+                      }
+                    }}
+                    className="text-xs text-white/35 tabular-nums bg-white/5 hover:bg-white/10 hover:text-white/60 px-1.5 py-0.5 rounded transition-colors"
+                  >
                     {fmtTime(c.songTimestamp)}
-                  </span>
+                  </button>
                 )}
                 <span className="text-xs text-white/20 ml-auto">
                   {new Date(c.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
@@ -100,19 +127,21 @@ export default function Comments({ trackId, currentTime }: { trackId: number; cu
             className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-sm text-white/75 placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors resize-none"
           />
           <div className="flex items-center gap-3">
-            {currentTime != null && (
-              <button
-                type="button"
-                onClick={() => setStampedTime(stampedTime != null ? null : Math.floor(currentTime))}
-                className={`text-xs px-3 py-1.5 rounded border transition-colors ${
-                  stampedTime != null
-                    ? "border-white/40 text-white/70 bg-white/5"
-                    : "border-white/15 text-white/35 hover:border-white/30 hover:text-white/55"
-                }`}
-              >
-                {stampedTime != null ? `@ ${fmtTime(stampedTime)} ✕` : "Stamp current time"}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => {
+                if (stampedTime != null) { setStampedTime(null); return; }
+                const t = getAudioCurrentTime();
+                if (t != null) setStampedTime(t);
+              }}
+              className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+                stampedTime != null
+                  ? "border-white/40 text-white/70 bg-white/5"
+                  : "border-white/15 text-white/35 hover:border-white/30 hover:text-white/55"
+              }`}
+            >
+              {stampedTime != null ? `@ ${fmtTime(stampedTime)} ✕` : "Stamp current time"}
+            </button>
             <button
               type="submit"
               disabled={submitting || !content.trim()}

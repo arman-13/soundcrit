@@ -80,7 +80,7 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
         </div>
       )}
 
-      <Comments trackId={track.id} />
+      <Comments trackId={track.id} track={track} />
     </div>
   );
 }

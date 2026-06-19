@@ -134,6 +134,22 @@ export const deleteComment = (trackId: number, commentId: number, token: string)
     headers: { Authorization: `Bearer ${token}` },
   });
 
+export const getAlbumComments = (albumId: number) =>
+  fetchApi<Comment[]>(`/api/albums/${albumId}/comments`);
+
+export const postAlbumComment = (albumId: number, content: string, token: string) =>
+  fetchApi<Comment>(`/api/albums/${albumId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ content, songTimestamp: null }),
+  });
+
+export const deleteAlbumComment = (albumId: number, commentId: number, token: string) =>
+  fetchApi<void>(`/api/albums/${albumId}/comments/${commentId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
 // ── Follow ────────────────────────────────────────────────────────────────────
 export const getFollowers = (userId: string, token?: string) =>
   fetchApi<{ count: number; isFollowing: boolean }>(`/api/users/${userId}/followers`, {
