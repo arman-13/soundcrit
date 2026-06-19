@@ -22,21 +22,21 @@ export default async function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="flex flex-col items-center justify-center text-center px-6 pt-14 pb-10">
-        <h1 className="text-2xl md:text-3xl font-light tracking-tight text-white/80 leading-tight mb-3">
+      <section className="flex flex-col items-center justify-center text-center px-6 pt-20 pb-16">
+        <h1 className="text-3xl md:text-5xl font-light tracking-tight text-white/90 leading-tight mb-5">
           Music with a story.
         </h1>
-        <p className="text-sm text-white/35 leading-relaxed mb-8" style={{ maxWidth: 420 }}>
+        <p className="text-base text-white/40 leading-relaxed mb-12" style={{ maxWidth: 480 }}>
           Every track comes with the story behind it — and listening is never a solo experience.
         </p>
-        <div className="flex gap-3 w-full justify-center mb-2" style={{ maxWidth: 520 }}>
-          <div className="flex-1 border border-white/8 rounded-lg px-4 py-4 text-left bg-white/[0.02]">
-            <p className="text-xs tracking-widest uppercase text-white/25 mb-1.5">Story Mode</p>
-            <p className="text-xs text-white/35 leading-relaxed">Images and words that appear in sync with the music.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full" style={{ maxWidth: 580 }}>
+          <div className="border border-white/8 rounded-xl px-5 py-6 text-left bg-white/[0.02]">
+            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">Story Mode</p>
+            <p className="text-sm text-white/40 leading-relaxed">Images and words that appear in sync with the music as it plays.</p>
           </div>
-          <div className="flex-1 border border-white/8 rounded-lg px-4 py-4 text-left bg-white/[0.02]">
-            <p className="text-xs tracking-widest uppercase text-white/25 mb-1.5">Live Sessions</p>
-            <p className="text-xs text-white/35 leading-relaxed">Listen together in real time. Every session is saved.</p>
+          <div className="border border-white/8 rounded-xl px-5 py-6 text-left bg-white/[0.02]">
+            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">Live Sessions</p>
+            <p className="text-sm text-white/40 leading-relaxed">Listen together in real time. Every session is saved as a record.</p>
           </div>
         </div>
       </section>
