@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { getEventSync, postEventComment } from "@/lib/api";
+import { getEventSync, getEventComments, postEventComment } from "@/lib/api";
 import { useEventHub } from "@/hooks/useEventHub";
 import { LiveEventDetail, EventComment } from "@/types";
 import Image from "next/image";
@@ -26,31 +26,37 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
   const currentTrack = approvedTracks[trackIndex] ?? null;
 
-  // Sync on mount — load audio at correct position
+  // Sync on mount — load audio at correct position and fetch existing comments
   useEffect(() => {
     getEventSync(event.id).then((sync) => {
       setTrackIndex(sync.currentTrackIndex);
       setElapsed(sync.elapsedSeconds);
-      const track = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order)[sync.currentTrackIndex];
+      const sorted = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
+      const track = sorted[sync.currentTrackIndex];
       const audio = audioRef.current;
-      if (!audio || !track) return;
-      audio.src = track.audioUrl;
-      audio.currentTime = sync.elapsedSeconds;
-      audio.play().catch(() => {});
+      if (audio && track) {
+        audio.src = track.audioUrl;
+        audio.currentTime = sync.elapsedSeconds;
+        audio.play().catch(() => {});
+      }
+      if (track) {
+        getEventComments(event.id, track.id).then(setComments).catch(() => {});
+      }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
-  // Track changes from hub — switch to new track from beginning
+  // Track changes from hub — switch to new track from beginning and load its comments
   useEffect(() => {
     if (hubTrackIndex === null) return;
     setTrackIndex(hubTrackIndex);
     const track = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order)[hubTrackIndex];
-    const audio = audioRef.current;
-    if (!audio || !track) return;
-    audio.src = track.audioUrl;
-    audio.currentTime = 0;
-    audio.play().catch(() => {});
+    if (track) {
+      const audio = audioRef.current;
+      if (audio) { audio.src = track.audioUrl; audio.currentTime = 0; audio.play().catch(() => {}); }
+      setComments([]);
+      getEventComments(event.id, track.id).then(setComments).catch(() => {});
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hubTrackIndex]);
 
