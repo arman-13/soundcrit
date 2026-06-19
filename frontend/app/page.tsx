@@ -56,21 +56,6 @@ export default async function HomePage() {
 
       <div className="max-w-6xl mx-auto px-6 pb-32 space-y-24">
 
-        {/* New Releases */}
-        <section id="new-releases">
-          <div className="flex items-baseline justify-between mb-8">
-            <h2 className="text-xs tracking-widest uppercase text-white/30">New Releases</h2>
-            <Link href="/music" className="text-xs text-white/35 hover:text-white/70 transition-colors">
-              See all →
-            </Link>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {tracks.map((track) => (
-              <TrackCard key={track.id} track={track} queue={tracks} />
-            ))}
-          </div>
-        </section>
-
         {/* Events */}
         {(liveEvents.length > 0 || upcomingEvents.length > 0) && (
           <section>
@@ -109,6 +94,21 @@ export default async function HomePage() {
             </div>
           </section>
         )}
+
+        {/* New Releases */}
+        <section id="new-releases">
+          <div className="flex items-baseline justify-between mb-8">
+            <h2 className="text-xs tracking-widest uppercase text-white/30">New Releases</h2>
+            <Link href="/music" className="text-xs text-white/35 hover:text-white/70 transition-colors">
+              See all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {tracks.map((track) => (
+              <TrackCard key={track.id} track={track} queue={tracks} />
+            ))}
+          </div>
+        </section>
 
         {/* Albums */}
         {albums.length > 0 && (
