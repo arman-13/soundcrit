@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 
 const publicLinks = [
   { href: "/", label: "Home" },
@@ -15,10 +16,12 @@ export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
     router.push("/");
+    setMenuOpen(false);
   };
 
   const navLinks = user
@@ -32,7 +35,8 @@ export default function Header() {
           Soundcritic
         </Link>
 
-        <nav className="flex items-center gap-8">
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center gap-8">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -51,7 +55,7 @@ export default function Header() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              <Link href="/profile" className="flex items-center gap-2 group">
+              <Link href="/profile" className="flex items-center gap-2 group" onClick={() => setMenuOpen(false)}>
                 {user.avatarUrl ? (
                   <div className="relative w-7 h-7 rounded-full overflow-hidden">
                     <Image src={user.avatarUrl} alt={user.displayName} fill className="object-cover" />
@@ -67,13 +71,13 @@ export default function Header() {
               </Link>
               <button
                 onClick={handleLogout}
-                className="text-xs text-white/40 hover:text-white/70 transition-colors"
+                className="text-xs text-white/40 hover:text-white/70 transition-colors hidden md:block"
               >
                 Logout
               </button>
             </>
           ) : (
-            <>
+            <div className="hidden md:flex items-center gap-4">
               <Link href="/login" className="text-sm text-white/50 hover:text-white/80 transition-colors">
                 Login
               </Link>
@@ -83,10 +87,53 @@ export default function Header() {
               >
                 Sign up
               </Link>
-            </>
+            </div>
           )}
+
+          {/* Hamburger */}
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            className="md:hidden flex flex-col gap-1.5 p-1.5 text-white/60 hover:text-white transition-colors"
+            aria-label="Toggle menu"
+          >
+            <span className={`block w-5 h-px bg-current transition-transform origin-center ${menuOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
+            <span className={`block w-5 h-px bg-current transition-opacity ${menuOpen ? "opacity-0" : ""}`} />
+            <span className={`block w-5 h-px bg-current transition-transform origin-center ${menuOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+          </button>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {menuOpen && (
+        <div className="md:hidden border-t border-white/8 bg-[#0a0a0a]/95 px-6 py-4 flex flex-col gap-1">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setMenuOpen(false)}
+              className={`py-3 text-sm tracking-wide transition-colors border-b border-white/5 last:border-0 ${
+                pathname === link.href || pathname.startsWith(link.href + "/")
+                  ? "text-white"
+                  : "text-white/50"
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+          <div className="pt-3 flex flex-col gap-3">
+            {user ? (
+              <button onClick={handleLogout} className="text-sm text-white/40 text-left">
+                Logout
+              </button>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setMenuOpen(false)} className="text-sm text-white/50">Login</Link>
+                <Link href="/register" onClick={() => setMenuOpen(false)} className="text-sm border border-white/20 px-3 py-1.5 rounded text-white/70 text-center">Sign up</Link>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
