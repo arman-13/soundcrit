@@ -49,7 +49,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ usernam
           <p className="text-sm text-white/45 leading-relaxed max-w-sm mb-6">{profile.bio}</p>
         )}
 
-        <FollowButton />
+        <FollowButton artistId={profile.id} />
       </header>
 
       {/* Albums */}

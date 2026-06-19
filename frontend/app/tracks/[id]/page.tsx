@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { getTrack } from "@/lib/api";
 import BackButton from "./BackButton";
+import Comments from "./Comments";
 import Link from "next/link";
 import TrackDetailPlayer from "./TrackDetailPlayer";
 import StorySection from "./StorySection";
@@ -78,6 +79,8 @@ export default async function TrackPage({ params }: { params: Promise<{ id: stri
           />
         </div>
       )}
+
+      <Comments trackId={track.id} />
     </div>
   );
 }

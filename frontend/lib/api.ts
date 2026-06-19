@@ -1,4 +1,4 @@
-import { Album, AlbumWithTracks, PagedResponse, PublicUserDto, TeamMember, Track } from "@/types";
+import { Album, AlbumWithTracks, Comment, PagedResponse, PublicUserDto, TeamMember, Track } from "@/types";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
@@ -116,6 +116,41 @@ export const getArtistTracks = (artist: string) =>
 
 export const getArtistAlbums = (artist: string) =>
   fetchApi<Album[]>(`/api/albums?artist=${encodeURIComponent(artist)}`);
+
+// ── Comments ─────────────────────────────────────────────────────────────────
+export const getComments = (trackId: number) =>
+  fetchApi<Comment[]>(`/api/tracks/${trackId}/comments`);
+
+export const postComment = (trackId: number, content: string, songTimestamp: number | null, token: string) =>
+  fetchApi<Comment>(`/api/tracks/${trackId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ content, songTimestamp }),
+  });
+
+export const deleteComment = (trackId: number, commentId: number, token: string) =>
+  fetchApi<void>(`/api/tracks/${trackId}/comments/${commentId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+// ── Follow ────────────────────────────────────────────────────────────────────
+export const getFollowers = (userId: string, token?: string) =>
+  fetchApi<{ count: number; isFollowing: boolean }>(`/api/users/${userId}/followers`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+export const followUser = (userId: string, token: string) =>
+  fetchApi<void>(`/api/users/${userId}/follow`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const unfollowUser = (userId: string, token: string) =>
+  fetchApi<void>(`/api/users/${userId}/follow`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
 // ── Team ─────────────────────────────────────────────────────────────────────
 export const getTeam = () =>

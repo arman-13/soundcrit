@@ -85,6 +85,15 @@ export interface UserDto {
   createdAt: string;
 }
 
+export interface Comment {
+  id: number;
+  userId: string;
+  displayName: string;
+  content: string;
+  songTimestamp?: number | null;
+  createdAt: string;
+}
+
 export interface PagedResponse<T> {
   data: T[];
   totalCount: number;

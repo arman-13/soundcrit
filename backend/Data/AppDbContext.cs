@@ -12,6 +12,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Album> Albums { get; set; }
     public DbSet<TrackAlbum> TrackAlbums { get; set; }
     public DbSet<TeamMember> TeamMembers { get; set; }
+    public DbSet<Comment> Comments { get; set; }
+    public DbSet<Follow> Follows { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,5 +31,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(ta => ta.Album)
             .WithMany(a => a.TrackAlbums)
             .HasForeignKey(ta => ta.AlbumId);
+
+        modelBuilder.Entity<Follow>()
+            .HasKey(f => new { f.FollowerId, f.FolloweeId });
     }
 }
