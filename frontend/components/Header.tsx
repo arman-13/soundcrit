@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 const publicLinks = [
   { href: "/", label: "Home" },
+  { href: "/events", label: "Events" },
   { href: "/about", label: "About" },
 ];
 

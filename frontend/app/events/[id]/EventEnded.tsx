@@ -1,0 +1,131 @@
+"use client";
+
+import { useAuth } from "@/contexts/AuthContext";
+import { getEventComments, postEventComment } from "@/lib/api";
+import { LiveEventDetail, EventComment, EventTrack } from "@/types";
+import Image from "next/image";
+import { useState } from "react";
+
+function fmtTime(s: number) {
+  return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
+}
+
+export default function EventEnded({ event }: { event: LiveEventDetail }) {
+  const { user, token } = useAuth();
+  const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
+  const [selectedTrack, setSelectedTrack] = useState<EventTrack | null>(approvedTracks[0] ?? null);
+  const [comments, setComments] = useState<EventComment[]>([]);
+  const [loadedTrackId, setLoadedTrackId] = useState<number | null>(null);
+  const [commentText, setCommentText] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadComments = async (track: EventTrack) => {
+    setSelectedTrack(track);
+    if (loadedTrackId === track.id) return;
+    try {
+      const c = await getEventComments(event.id, track.id);
+      setComments(c);
+      setLoadedTrackId(track.id);
+    } catch {}
+  };
+
+  const handleComment = async () => {
+    if (!token || !commentText.trim() || !selectedTrack) return;
+    setSubmitting(true);
+    try {
+      const c = await postEventComment(event.id, {
+        content: commentText.trim(),
+        eventTrackId: selectedTrack.id,
+        trackTimestamp: 0,
+        isAnonymous,
+      }, token);
+      setComments((prev) => [...prev, c]);
+      setCommentText("");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-16">
+      <div className="mb-8">
+        <p className="text-xs tracking-widest uppercase text-white/25 mb-2">Session Ended</p>
+        <h1 className="text-3xl font-light text-white/90">{event.title}</h1>
+        <p className="text-sm text-white/30 mt-1">
+          {new Date(event.scheduledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+        </p>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-8">
+        {/* Track list */}
+        <div className="md:w-56 shrink-0">
+          <p className="text-xs tracking-widest uppercase text-white/25 mb-4">Tracks</p>
+          <div className="space-y-2">
+            {approvedTracks.map((t) => (
+              <button key={t.id} onClick={() => loadComments(t)}
+                className={`w-full flex gap-3 items-center p-2 rounded-lg text-left transition-colors ${selectedTrack?.id === t.id ? "bg-white/8" : "hover:bg-white/5"}`}>
+                <div className="relative w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5">
+                  <Image src={t.coverImageUrl} alt={t.title} fill className="object-cover" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-white/75 truncate">{t.title}</p>
+                  <p className="text-xs text-white/35 truncate">{t.artist}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Comments */}
+        <div className="flex-1 min-w-0">
+          {selectedTrack && (
+            <>
+              <div className="flex items-center gap-3 mb-6">
+                <div className="relative w-12 h-12 rounded overflow-hidden shrink-0 bg-white/5">
+                  <Image src={selectedTrack.coverImageUrl} alt={selectedTrack.title} fill className="object-cover" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/80">{selectedTrack.title}</p>
+                  <p className="text-xs text-white/40">{selectedTrack.artist}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4 mb-6 max-h-80 overflow-y-auto">
+                {comments.map((c) => (
+                  <div key={c.id} className="flex gap-3">
+                    <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs text-white/50 shrink-0">
+                      {c.displayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-white/70 mr-2">{c.displayName}</span>
+                      {c.trackTimestamp > 0 && <span className="text-xs text-white/25 mr-2">{fmtTime(c.trackTimestamp)}</span>}
+                      <p className="text-sm text-white/50 mt-0.5">{c.content}</p>
+                    </div>
+                  </div>
+                ))}
+                {comments.length === 0 && <p className="text-sm text-white/25">No comments for this track.</p>}
+              </div>
+
+              {user ? (
+                <div className="flex gap-3">
+                  <input value={commentText} onChange={(e) => setCommentText(e.target.value)}
+                    placeholder="Leave a comment…"
+                    className="flex-1 bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors" />
+                  <label className="flex items-center gap-1.5 text-xs text-white/30 cursor-pointer">
+                    <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} className="accent-white" />
+                    Anon
+                  </label>
+                  <button onClick={handleComment} disabled={submitting || !commentText.trim()}
+                    className="bg-white text-black text-sm font-medium px-4 py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-40">Post</button>
+                </div>
+              ) : (
+                <p className="text-sm text-white/30"><a href="/login" className="underline">Sign in</a> to comment.</p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

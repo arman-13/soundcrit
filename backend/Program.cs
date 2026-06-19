@@ -1,5 +1,6 @@
 using System.Text;
 using Backend.Data;
+using Backend.Hubs;
 using Backend.Models;
 using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -72,6 +73,8 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddHostedService<EventScheduler>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -121,6 +124,7 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<EventHub>("/hubs/event");
 
 using (var scope = app.Services.CreateScope())
 {

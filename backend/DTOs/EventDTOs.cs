@@ -1,0 +1,62 @@
+namespace Backend.DTOs;
+
+public record EventSummaryDto(
+    int Id, string Title, string? Description, string? CoverImageUrl,
+    DateTime ScheduledAt, string Status, string HostId,
+    int TrackCount, List<string> Genres
+);
+
+public record EventDetailDto(
+    int Id, string Title, string? Description, string? CoverImageUrl,
+    DateTime ScheduledAt, string Status, string HostId,
+    string HostDisplayName, string? HostAvatarUrl,
+    List<EventTrackDto> Tracks,
+    PlaybackStateDto PlaybackState
+);
+
+public record EventTrackDto(
+    int Id, int TrackId, string Title, string Artist, string Duration,
+    string CoverImageUrl, string? Genre, string? Mood,
+    int Order, string Status, string UserId, bool UploadToProfile
+);
+
+public record PlaybackStateDto(
+    string Status, int CurrentTrackIndex,
+    DateTime? CurrentTrackStartedAt, DateTime? CountdownStartedAt,
+    DateTime ServerTime
+);
+
+public record EventSyncDto(
+    string Status, int CurrentTrackIndex,
+    double ElapsedSeconds, double CountdownSeconds,
+    DateTime ServerTime
+);
+
+public record CreateEventRequest(
+    string Title, string? Description, string? CoverImageUrl, DateTime ScheduledAt
+);
+
+public record UpdateEventRequest(
+    string Title, string? Description, string? CoverImageUrl, DateTime ScheduledAt
+);
+
+public record EventRequestDto(
+    int Id, string UserId, string? Message, string Status, DateTime RequestedAt
+);
+
+public record SubmitJoinRequestBody(string? Message);
+
+public record UpdateRequestStatusBody(string Status);
+
+public record SubmitEventTrackBody(int TrackId, bool UploadToProfile);
+
+public record UpdateEventTrackBody(string Status, int Order);
+
+public record EventCommentDto(
+    int Id, int EventTrackId, string UserId, string DisplayName,
+    string Content, int TrackTimestamp, DateTime CreatedAt, bool IsAnonymous
+);
+
+public record CreateEventCommentBody(
+    string Content, int EventTrackId, int TrackTimestamp, bool IsAnonymous
+);

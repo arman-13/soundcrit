@@ -15,10 +15,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Comment> Comments { get; set; }
     public DbSet<AlbumComment> AlbumComments { get; set; }
     public DbSet<Follow> Follows { get; set; }
+    public DbSet<Event> Events { get; set; }
+    public DbSet<EventRequest> EventRequests { get; set; }
+    public DbSet<EventTrack> EventTracks { get; set; }
+    public DbSet<EventComment> EventComments { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Event>().ToTable("Events");
+        modelBuilder.Entity<EventRequest>().ToTable("EventRequests");
+        modelBuilder.Entity<EventTrack>().ToTable("EventTracks");
+        modelBuilder.Entity<EventComment>().ToTable("EventComments");
 
         modelBuilder.Entity<TrackAlbum>()
             .HasKey(ta => new { ta.TrackId, ta.AlbumId });

@@ -1,0 +1,59 @@
+"use client";
+
+import * as signalR from "@microsoft/signalr";
+import { useEffect, useRef, useState } from "react";
+import { EventComment } from "@/types";
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
+
+export function useEventHub(eventId: number, token?: string | null) {
+  const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [eventStatus, setEventStatus] = useState<string | null>(null);
+  const [newComments, setNewComments] = useState<EventComment[]>([]);
+  const [approvedUserId, setApprovedUserId] = useState<string | null>(null);
+  const connectionRef = useRef<signalR.HubConnection | null>(null);
+
+  useEffect(() => {
+    const builder = new signalR.HubConnectionBuilder()
+      .withUrl(`${API_URL}/hubs/event`, token
+        ? { accessTokenFactory: () => token }
+        : {})
+      .withAutomaticReconnect()
+      .build();
+
+    builder.on("TrackChanged", (index: number) => {
+      setCurrentTrackIndex(index);
+      setCountdown(null);
+    });
+
+    builder.on("CountdownStarted", (seconds: number) => {
+      setCountdown(seconds);
+    });
+
+    builder.on("EventEnded", () => {
+      setEventStatus("Ended");
+    });
+
+    builder.on("NewComment", (comment: EventComment) => {
+      setNewComments((prev) => [comment, ...prev]);
+    });
+
+    builder.on("RequestApproved", (userId: string) => {
+      setApprovedUserId(userId);
+    });
+
+    builder.start()
+      .then(() => builder.invoke("JoinEvent", eventId))
+      .catch(console.error);
+
+    connectionRef.current = builder;
+
+    return () => {
+      builder.invoke("LeaveEvent", eventId).catch(() => {});
+      builder.stop();
+    };
+  }, [eventId, token]);
+
+  return { currentTrackIndex, countdown, eventStatus, newComments, approvedUserId };
+}

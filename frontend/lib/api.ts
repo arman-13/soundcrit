@@ -1,4 +1,4 @@
-import { Album, AlbumWithTracks, Comment, PagedResponse, PublicUserDto, TeamMember, Track } from "@/types";
+import { Album, AlbumWithTracks, Comment, EventComment, EventRequest, EventSync, EventTrack, LiveEvent, LiveEventDetail, PagedResponse, PublicUserDto, TeamMember, Track } from "@/types";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
@@ -171,3 +171,87 @@ export const unfollowUser = (userId: string, token: string) =>
 // ── Team ─────────────────────────────────────────────────────────────────────
 export const getTeam = () =>
   fetchApi<TeamMember[]>(`/api/team`);
+
+// ── Events ────────────────────────────────────────────────────────────────────
+export const getEvents = () =>
+  fetchApi<LiveEvent[]>(`/api/events`);
+
+export const getEvent = (id: number) =>
+  fetchApi<LiveEventDetail>(`/api/events/${id}`);
+
+export const createEvent = (data: { title: string; description?: string; coverImageUrl?: string; scheduledAt: string }, token: string) =>
+  fetchApi<{ id: number }>(`/api/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+
+export const updateEvent = (id: number, data: { title: string; description?: string; coverImageUrl?: string; scheduledAt: string }, token: string) =>
+  fetchApi<void>(`/api/events/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(data),
+  });
+
+export const deleteEvent = (id: number, token: string) =>
+  fetchApi<void>(`/api/events/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const submitJoinRequest = (eventId: number, message: string | undefined, token: string) =>
+  fetchApi<void>(`/api/events/${eventId}/requests`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ message }),
+  });
+
+export const getEventRequests = (eventId: number, token: string) =>
+  fetchApi<EventRequest[]>(`/api/events/${eventId}/requests`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const updateRequestStatus = (eventId: number, requestId: number, status: string, token: string) =>
+  fetchApi<void>(`/api/events/${eventId}/requests/${requestId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ status }),
+  });
+
+export const submitEventTrack = (eventId: number, trackId: number, uploadToProfile: boolean, token: string) =>
+  fetchApi<void>(`/api/events/${eventId}/tracks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ trackId, uploadToProfile }),
+  });
+
+export const getEventTracks = (eventId: number, token: string) =>
+  fetchApi<EventTrack[]>(`/api/events/${eventId}/tracks`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const updateEventTrack = (eventId: number, trackId: number, status: string, order: number, token: string) =>
+  fetchApi<void>(`/api/events/${eventId}/tracks/${trackId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ status, order }),
+  });
+
+export const deleteEventTrack = (eventId: number, trackId: number, token: string) =>
+  fetchApi<void>(`/api/events/${eventId}/tracks/${trackId}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const getEventSync = (eventId: number) =>
+  fetchApi<EventSync>(`/api/events/${eventId}/sync`);
+
+export const postEventComment = (eventId: number, body: { content: string; eventTrackId: number; trackTimestamp: number; isAnonymous: boolean }, token: string) =>
+  fetchApi<EventComment>(`/api/events/${eventId}/comments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+
+export const getEventComments = (eventId: number, eventTrackId: number) =>
+  fetchApi<EventComment[]>(`/api/events/${eventId}/comments/${eventTrackId}`);
