@@ -12,7 +12,8 @@ function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
 
   useEffect(() => {
     const tick = () => {
-      const diff = Math.max(0, new Date(scheduledAt).getTime() - Date.now());
+      const scheduled = scheduledAt.endsWith("Z") ? scheduledAt : scheduledAt + "Z";
+      const diff = Math.max(0, new Date(scheduled).getTime() - Date.now());
       setParts({
         d: Math.floor(diff / 86400000),
         h: Math.floor((diff % 86400000) / 3600000),

@@ -73,7 +73,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddScoped<JwtService>();
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+        o.JsonSerializerOptions.Converters.Add(new Backend.Infrastructure.UtcDateTimeConverter()));
 builder.Services.AddSignalR();
 builder.Services.AddHostedService<EventScheduler>();
 builder.Services.AddEndpointsApiExplorer();
