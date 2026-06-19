@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getEventComments, postEventComment } from "@/lib/api";
 import { LiveEventDetail, EventComment, EventTrack } from "@/types";
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 function fmtTime(s: number) {
   return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
@@ -19,9 +19,21 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const playTrack = (track: EventTrack, seekTo = 0) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (selectedTrack?.id !== track.id) {
+      audio.src = track.audioUrl;
+    }
+    audio.currentTime = seekTo;
+    audio.play().catch(() => {});
+  };
 
   const loadComments = async (track: EventTrack) => {
     setSelectedTrack(track);
+    playTrack(track);
     if (loadedTrackId === track.id) return;
     try {
       const c = await getEventComments(event.id, track.id);
@@ -81,7 +93,7 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
         <div className="flex-1 min-w-0">
           {selectedTrack && (
             <>
-              <div className="flex items-center gap-3 mb-6">
+              <div className="flex items-center gap-3 mb-4">
                 <div className="relative w-12 h-12 rounded overflow-hidden shrink-0 bg-white/5">
                   <Image src={selectedTrack.coverImageUrl} alt={selectedTrack.title} fill className="object-cover" />
                 </div>
@@ -91,6 +103,9 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
                 </div>
               </div>
 
+              <audio ref={audioRef} controls src={selectedTrack.audioUrl}
+                className="w-full mb-6 opacity-60 hover:opacity-100 transition-opacity" />
+
               <div className="space-y-4 mb-6 max-h-80 overflow-y-auto">
                 {comments.map((c) => (
                   <div key={c.id} className="flex gap-3">
@@ -99,7 +114,12 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
                     </div>
                     <div>
                       <span className="text-sm font-medium text-white/70 mr-2">{c.displayName}</span>
-                      {c.trackTimestamp > 0 && <span className="text-xs text-white/25 mr-2">{fmtTime(c.trackTimestamp)}</span>}
+                      {c.trackTimestamp > 0 && (
+                        <button onClick={() => { if (audioRef.current) { audioRef.current.currentTime = c.trackTimestamp; audioRef.current.play().catch(() => {}); } }}
+                          className="text-xs text-white/35 hover:text-white/70 transition-colors mr-2 font-mono">
+                          {fmtTime(c.trackTimestamp)}
+                        </button>
+                      )}
                       <p className="text-sm text-white/50 mt-0.5">{c.content}</p>
                     </div>
                   </div>
