@@ -2,16 +2,27 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { getEventComments, postEventComment } from "@/lib/api";
-import { LiveEventDetail, EventComment, EventTrack } from "@/types";
+import { useAudioPlayer } from "@/lib/AudioPlayerContext";
+import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
 import Image from "next/image";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 function fmtTime(s: number) {
   return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
 }
 
+function toTrack(et: EventTrack): Track {
+  return {
+    id: et.trackId, title: et.title, artist: et.artist,
+    audioUrl: et.audioUrl, coverImageUrl: et.coverImageUrl,
+    duration: et.duration, genre: et.genre ?? "",
+    albumTitle: "", publishedAt: "", isPublished: true, playCount: 0, isFeatured: false,
+  };
+}
+
 export default function EventEnded({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
+  const { playTrack: globalPlay, seekTo } = useAudioPlayer();
   const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
   const [selectedTrack, setSelectedTrack] = useState<EventTrack | null>(approvedTracks[0] ?? null);
   const [comments, setComments] = useState<EventComment[]>([]);
@@ -19,21 +30,10 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
-
-  const playTrack = (track: EventTrack, seekTo = 0) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (selectedTrack?.id !== track.id) {
-      audio.src = track.audioUrl;
-    }
-    audio.currentTime = seekTo;
-    audio.play().catch(() => {});
-  };
 
   const loadComments = async (track: EventTrack) => {
     setSelectedTrack(track);
-    playTrack(track);
+    globalPlay(toTrack(track), approvedTracks.map(toTrack));
     if (loadedTrackId === track.id) return;
     try {
       const c = await getEventComments(event.id, track.id);
@@ -60,7 +60,7 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-16">
+    <div className="max-w-4xl mx-auto px-6 py-16 pb-28">
       <div className="mb-8">
         <p className="text-xs tracking-widest uppercase text-white/25 mb-2">Session Ended</p>
         <h1 className="text-3xl font-light text-white/90">{event.title}</h1>
@@ -103,9 +103,6 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
                 </div>
               </div>
 
-              <audio ref={audioRef} controls src={selectedTrack.audioUrl}
-                className="w-full mb-6 opacity-60 hover:opacity-100 transition-opacity" />
-
               <div className="space-y-4 mb-6 max-h-80 overflow-y-auto">
                 {comments.map((c) => (
                   <div key={c.id} className="flex gap-3">
@@ -115,7 +112,7 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
                     <div>
                       <span className="text-sm font-medium text-white/70 mr-2">{c.displayName}</span>
                       {c.trackTimestamp > 0 && (
-                        <button onClick={() => { if (audioRef.current) { audioRef.current.currentTime = c.trackTimestamp; audioRef.current.play().catch(() => {}); } }}
+                        <button onClick={() => seekTo(c.trackTimestamp)}
                           className="text-xs text-white/35 hover:text-white/70 transition-colors mr-2 font-mono">
                           {fmtTime(c.trackTimestamp)}
                         </button>

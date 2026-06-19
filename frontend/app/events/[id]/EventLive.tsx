@@ -3,17 +3,36 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { getEventSync, getEventComments, postEventComment } from "@/lib/api";
 import { useEventHub } from "@/hooks/useEventHub";
-import { LiveEventDetail, EventComment } from "@/types";
+import { useAudioPlayer } from "@/lib/AudioPlayerContext";
+import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 function fmtTime(s: number) {
   const m = Math.floor(s / 60);
   return `${m}:${Math.floor(s % 60).toString().padStart(2, "0")}`;
 }
 
+function toTrack(et: EventTrack): Track {
+  return {
+    id: et.trackId,
+    title: et.title,
+    artist: et.artist,
+    audioUrl: et.audioUrl,
+    coverImageUrl: et.coverImageUrl,
+    duration: et.duration,
+    genre: et.genre ?? "",
+    albumTitle: "",
+    publishedAt: "",
+    isPublished: true,
+    playCount: 0,
+    isFeatured: false,
+  };
+}
+
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
+  const { playTrack, seekTo } = useAudioPlayer();
   const { currentTrackIndex: hubTrackIndex, countdown } = useEventHub(
     event.id, token,
     (comment) => setComments((prev) => [comment, ...prev]),
@@ -24,7 +43,6 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const audioRef = useRef<HTMLAudioElement>(null);
 
   const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
   const currentTrack = approvedTracks[trackIndex] ?? null;
@@ -36,13 +54,9 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       setElapsed(sync.elapsedSeconds);
       const sorted = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
       const track = sorted[sync.currentTrackIndex];
-      const audio = audioRef.current;
-      if (audio && track) {
-        audio.src = track.audioUrl;
-        audio.currentTime = sync.elapsedSeconds;
-        audio.play().catch(() => {});
-      }
       if (track) {
+        playTrack(toTrack(track), sorted.map(toTrack));
+        setTimeout(() => seekTo(sync.elapsedSeconds), 100);
         getEventComments(event.id, track.id).then(setComments).catch(() => {});
       }
     }).catch(() => {});
@@ -53,10 +67,10 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   useEffect(() => {
     if (hubTrackIndex === null) return;
     setTrackIndex(hubTrackIndex);
-    const track = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order)[hubTrackIndex];
+    const sorted = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
+    const track = sorted[hubTrackIndex];
     if (track) {
-      const audio = audioRef.current;
-      if (audio) { audio.src = track.audioUrl; audio.currentTime = 0; audio.play().catch(() => {}); }
+      playTrack(toTrack(track), sorted.map(toTrack));
       setComments([]);
       getEventComments(event.id, track.id).then(setComments).catch(() => {});
     }
@@ -89,7 +103,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   if (countdown !== null) {
     const next = approvedTracks[trackIndex + 1];
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center pb-20">
         <p className="text-xs tracking-widest uppercase text-white/30 mb-8">Up Next</p>
         {next && (
           <>
@@ -107,8 +121,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-16">
-      <audio ref={audioRef} controls className="w-full mb-6 opacity-60 hover:opacity-100 transition-opacity" />
+    <div className="max-w-3xl mx-auto px-6 py-16 pb-28">
       <div className="flex items-center gap-2 mb-10">
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
         <p className="text-xs tracking-widest uppercase text-white/30">Live · {event.title}</p>
