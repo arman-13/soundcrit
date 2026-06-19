@@ -24,10 +24,10 @@ export default async function HomePage() {
       {/* Hero */}
       <section className="flex flex-col items-center justify-center text-center px-6 pt-20 pb-16">
         <h1 className="text-3xl md:text-5xl font-light tracking-tight text-white/90 leading-tight mb-5">
-          Music with a story.
+          Music with a story
         </h1>
         <p className="text-base text-white/40 leading-relaxed mb-12" style={{ maxWidth: 480 }}>
-          Every track comes with the story behind it — and listening is never a solo experience.
+          Every track comes with the story behind it — and listening is never a solo experience
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full" style={{ maxWidth: 580 }}>
           <div className="border border-white/8 rounded-xl px-5 py-6 text-left bg-white/[0.02]">
