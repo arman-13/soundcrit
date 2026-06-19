@@ -5,8 +5,23 @@ import { getEvents, createEvent, deleteEvent } from "@/lib/api";
 import { LiveEvent } from "@/types";
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+async function uploadImage(file: File, token: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/api/upload/image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  const { url } = await res.json();
+  return url;
+}
 
 export default function MyEventsPage() {
   const { user, token, loading } = useAuth();
@@ -16,6 +31,21 @@ export default function MyEventsPage() {
   const [form, setForm] = useState({ title: "", description: "", coverImageUrl: "", scheduledAt: "" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const coverRef = useRef<HTMLInputElement>(null);
+
+  const handleCoverUpload = async (file: File) => {
+    if (!token) return;
+    setUploading(true);
+    try {
+      const url = await uploadImage(file, token);
+      setForm((p) => ({ ...p, coverImageUrl: url }));
+    } catch {
+      setError("Image upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -97,7 +127,6 @@ export default function MyEventsPage() {
           {[
             ["Title", "title", "text"],
             ["Description", "description", "text"],
-            ["Cover Image URL", "coverImageUrl", "url"],
           ].map(([label, field, type]) => (
             <div key={field}>
               <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">{label}</label>
@@ -107,13 +136,31 @@ export default function MyEventsPage() {
             </div>
           ))}
           <div>
+            <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Cover Image</label>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <input ref={coverRef} type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverUpload(f); }} />
+                <button type="button" onClick={() => coverRef.current?.click()} disabled={uploading}
+                  className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50">
+                  {uploading ? "Uploading…" : "Choose image file…"}
+                </button>
+              </div>
+              {form.coverImageUrl && (
+                <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0 bg-white/5">
+                  <Image src={form.coverImageUrl} alt="cover preview" fill className="object-cover" />
+                </div>
+              )}
+            </div>
+          </div>
+          <div>
             <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Scheduled At</label>
             <input type="datetime-local" value={form.scheduledAt}
               onChange={(e) => setForm((p) => ({ ...p, scheduledAt: e.target.value }))}
               className="bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors" />
           </div>
           {error && <p className="text-sm text-red-400/80">{error}</p>}
-          <button type="submit" disabled={busy}
+          <button type="submit" disabled={busy || uploading}
             className="bg-white text-black text-sm font-medium px-6 py-3 rounded hover:bg-white/90 transition-colors disabled:opacity-50">
             {busy ? "Creating…" : "Create Event"}
           </button>

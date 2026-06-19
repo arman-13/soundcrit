@@ -12,7 +12,9 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(`API error: ${res.status} — ${body}`);
   }
   if (res.status === 204) return null as T;
-  return res.json();
+  const text = await res.text();
+  if (!text) return null as T;
+  return JSON.parse(text);
 }
 
 function authHeaders(token: string) {
@@ -196,6 +198,11 @@ export const updateEvent = (id: number, data: { title: string; description?: str
 export const deleteEvent = (id: number, token: string) =>
   fetchApi<void>(`/api/events/${id}`, {
     method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+export const getMyEventRequest = (eventId: number, token: string) =>
+  fetchApi<{ status: string | null }>(`/api/events/${eventId}/requests/mine`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 

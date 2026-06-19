@@ -65,10 +65,12 @@ public class EventsController : ControllerBase
         var playback = new PlaybackStateDto(ev.Status, ev.CurrentTrackIndex,
             ev.CurrentTrackStartedAt, ev.CountdownStartedAt, DateTime.UtcNow);
 
+        var genres = tracks.Select(t => t.Genre).Where(g => !string.IsNullOrEmpty(g)).Distinct().ToList();
+
         return Ok(new EventDetailDto(ev.Id, ev.Title, ev.Description, ev.CoverImageUrl,
             ev.ScheduledAt, ev.Status, ev.HostId,
             host?.DisplayName ?? host?.UserName ?? "Unknown", host?.AvatarUrl,
-            tracks, playback));
+            tracks.Count, genres!, tracks, playback));
     }
 
     [Authorize]

@@ -10,6 +10,7 @@ public record EventDetailDto(
     int Id, string Title, string? Description, string? CoverImageUrl,
     DateTime ScheduledAt, string Status, string HostId,
     string HostDisplayName, string? HostAvatarUrl,
+    int TrackCount, List<string> Genres,
     List<EventTrackDto> Tracks,
     PlaybackStateDto PlaybackState
 );

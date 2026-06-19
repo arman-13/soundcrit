@@ -24,6 +24,16 @@ public class EventRequestsController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("mine")]
+    public async Task<ActionResult> GetMine(int eventId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var req = await _db.EventRequests.FirstOrDefaultAsync(r => r.EventId == eventId && r.UserId == userId);
+        if (req is null) return Ok(new { status = (string?)null });
+        return Ok(new { status = req.Status });
+    }
+
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Submit(int eventId, SubmitJoinRequestBody body)
     {
