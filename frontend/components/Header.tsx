@@ -22,7 +22,7 @@ export default function Header() {
   };
 
   const navLinks = user
-    ? [...publicLinks, { href: "/my-music", label: "My Music" }]
+    ? [...publicLinks, { href: "/my-music", label: "My Music" }, { href: "/my-events", label: "My Events" }]
     : publicLinks;
 
   return (
