@@ -17,7 +17,7 @@ public record EventDetailDto(
 
 public record EventTrackDto(
     int Id, int TrackId, string Title, string Artist, string Duration,
-    string CoverImageUrl, string? Genre, string? Mood,
+    string AudioUrl, string CoverImageUrl, string? Genre, string? Mood,
     int Order, string Status, string UserId, bool UploadToProfile
 );
 

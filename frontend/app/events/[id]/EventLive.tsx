@@ -26,22 +26,37 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
   const currentTrack = approvedTracks[trackIndex] ?? null;
 
-  // Sync on mount
+  // Sync on mount — load audio at correct position
   useEffect(() => {
     getEventSync(event.id).then((sync) => {
       setTrackIndex(sync.currentTrackIndex);
       setElapsed(sync.elapsedSeconds);
+      const track = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order)[sync.currentTrackIndex];
+      const audio = audioRef.current;
+      if (!audio || !track) return;
+      audio.src = track.audioUrl;
+      audio.currentTime = sync.elapsedSeconds;
+      audio.play().catch(() => {});
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
-  // Track changes from hub
+  // Track changes from hub — switch to new track from beginning
   useEffect(() => {
-    if (hubTrackIndex !== null) setTrackIndex(hubTrackIndex);
+    if (hubTrackIndex === null) return;
+    setTrackIndex(hubTrackIndex);
+    const track = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order)[hubTrackIndex];
+    const audio = audioRef.current;
+    if (!audio || !track) return;
+    audio.src = track.audioUrl;
+    audio.currentTime = 0;
+    audio.play().catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hubTrackIndex]);
 
   // Live elapsed timer
   useEffect(() => {
+    setElapsed(0);
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
   }, [trackIndex]);
@@ -89,7 +104,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16">
-      <audio ref={audioRef} className="hidden" />
+      <audio ref={audioRef} controls className="w-full mb-6 opacity-60 hover:opacity-100 transition-opacity" />
       <div className="flex items-center gap-2 mb-10">
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
         <p className="text-xs tracking-widest uppercase text-white/30">Live · {event.title}</p>

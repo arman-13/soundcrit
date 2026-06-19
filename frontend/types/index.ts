@@ -126,6 +126,7 @@ export interface EventTrack {
   title: string;
   artist: string;
   duration: string;
+  audioUrl: string;
   coverImageUrl: string;
   genre?: string;
   mood?: string;
