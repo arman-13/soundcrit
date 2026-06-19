@@ -14,7 +14,10 @@ function fmtTime(s: number) {
 
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { currentTrackIndex: hubTrackIndex, countdown, newComments } = useEventHub(event.id, token);
+  const { currentTrackIndex: hubTrackIndex, countdown } = useEventHub(
+    event.id, token,
+    (comment) => setComments((prev) => [comment, ...prev]),
+  );
   const [trackIndex, setTrackIndex] = useState(event.playbackState.currentTrackIndex);
   const [elapsed, setElapsed] = useState(0);
   const [comments, setComments] = useState<EventComment[]>([]);
@@ -66,11 +69,6 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
   }, [trackIndex]);
-
-  // New comments from hub
-  useEffect(() => {
-    if (newComments.length > 0) setComments((prev) => [newComments[0], ...prev]);
-  }, [newComments]);
 
   const handleComment = async () => {
     if (!token || !commentText.trim() || !currentTrack) return;

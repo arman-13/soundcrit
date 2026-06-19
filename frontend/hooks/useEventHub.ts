@@ -6,13 +6,18 @@ import { EventComment } from "@/types";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
-export function useEventHub(eventId: number, token?: string | null) {
+export function useEventHub(
+  eventId: number,
+  token?: string | null,
+  onNewComment?: (comment: EventComment) => void,
+) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [eventStatus, setEventStatus] = useState<string | null>(null);
-  const [newComments, setNewComments] = useState<EventComment[]>([]);
   const [approvedUserId, setApprovedUserId] = useState<string | null>(null);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
+  const onNewCommentRef = useRef(onNewComment);
+  onNewCommentRef.current = onNewComment;
 
   useEffect(() => {
     const builder = new signalR.HubConnectionBuilder()
@@ -36,7 +41,7 @@ export function useEventHub(eventId: number, token?: string | null) {
     });
 
     builder.on("NewComment", (comment: EventComment) => {
-      setNewComments((prev) => [comment, ...prev]);
+      onNewCommentRef.current?.(comment);
     });
 
     builder.on("RequestApproved", (userId: string) => {
@@ -55,5 +60,5 @@ export function useEventHub(eventId: number, token?: string | null) {
     };
   }, [eventId, token]);
 
-  return { currentTrackIndex, countdown, eventStatus, newComments, approvedUserId };
+  return { currentTrackIndex, countdown, eventStatus, approvedUserId };
 }
