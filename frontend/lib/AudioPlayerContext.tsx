@@ -12,6 +12,7 @@ interface AudioPlayerContextType {
   playTrack: (track: Track, queue?: Track[]) => void;
   setIsPlaying: (v: boolean) => void;
   setIsLive: (v: boolean) => void;
+  dismiss: () => void;
   playNext: () => void;
   playPrev: () => void;
   seekTo: (seconds: number) => void;
@@ -29,6 +30,7 @@ const AudioPlayerContext = createContext<AudioPlayerContextType>({
   playNext: () => {},
   playPrev: () => {},
   seekTo: () => {},
+  dismiss: () => {},
   audioRef: { current: null },
 });
 
@@ -67,8 +69,16 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     audio.play().catch(() => {});
   };
 
+  const dismiss = () => {
+    const audio = audioRef.current;
+    if (audio) { audio.pause(); audio.src = ""; }
+    setCurrentTrack(null);
+    setIsPlaying(false);
+    setQueue([]);
+  };
+
   return (
-    <AudioPlayerContext.Provider value={{ currentTrack, queue, isPlaying, isLive, playTrack, setIsPlaying, setIsLive, playNext, playPrev, seekTo, audioRef }}>
+    <AudioPlayerContext.Provider value={{ currentTrack, queue, isPlaying, isLive, playTrack, setIsPlaying, setIsLive, playNext, playPrev, seekTo, dismiss, audioRef }}>
       {children}
     </AudioPlayerContext.Provider>
   );

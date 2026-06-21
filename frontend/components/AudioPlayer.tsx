@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function AudioPlayer() {
-  const { currentTrack, isPlaying, isLive, setIsPlaying, playNext, playPrev, queue, audioRef } = useAudioPlayer();
+  const { currentTrack, isPlaying, isLive, setIsPlaying, playNext, playPrev, queue, audioRef, dismiss } = useAudioPlayer();
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -101,6 +101,12 @@ export default function AudioPlayer() {
           </div>
 
           <span className="text-xs text-white/30 shrink-0 hidden sm:block">{currentTrack.duration}</span>
+
+          <button onClick={dismiss} className="text-white/25 hover:text-white/60 transition-colors shrink-0 ml-2" aria-label="Close player">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
     </>
