@@ -47,7 +47,18 @@ public class EventScheduler : BackgroundService
         foreach (var ev in toStart)
         {
             ev.Status = "Live";
+            ev.CurrentTrackIndex = 0;
             ev.CurrentTrackStartedAt = now;
+            ev.CountdownStartedAt = null;
+
+            var firstTrack = await db.EventTracks
+                .Include(t => t.Track)
+                .Where(t => t.EventId == ev.Id && t.Status == "Approved")
+                .OrderBy(t => t.Order)
+                .FirstOrDefaultAsync();
+
+            if (firstTrack != null)
+                await _hub.Clients.Group($"event-{ev.Id}").SendAsync("TrackChanged", 0);
         }
 
         // Advance live events
@@ -78,7 +89,7 @@ public class EventScheduler : BackgroundService
             if (ev.CountdownStartedAt.HasValue)
             {
                 var countdownElapsed = (now - ev.CountdownStartedAt.Value).TotalSeconds;
-                if (countdownElapsed >= 60)
+                if (countdownElapsed >= 40)
                 {
                     ev.CurrentTrackIndex++;
                     ev.CurrentTrackStartedAt = now;
@@ -100,12 +111,19 @@ public class EventScheduler : BackgroundService
             }
             else if (elapsed >= durationSeconds && durationSeconds > 0)
             {
-                // Track finished, start countdown
-                ev.CountdownStartedAt = now;
                 var nextIndex = ev.CurrentTrackIndex + 1;
                 if (nextIndex < tracks.Count)
                 {
-                    await _hub.Clients.Group($"event-{ev.Id}").SendAsync("CountdownStarted", 60);
+                    // More tracks — start countdown
+                    ev.CountdownStartedAt = now;
+                    await _hub.Clients.Group($"event-{ev.Id}").SendAsync("CountdownStarted", 40);
+                }
+                else
+                {
+                    // Last track finished — end immediately
+                    ev.Status = "Ended";
+                    await _hub.Clients.Group($"event-{ev.Id}").SendAsync("EventEnded");
+                    await ProcessUploadToProfile(db, ev.Id);
                 }
             }
         }

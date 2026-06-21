@@ -52,7 +52,7 @@ export default function MyEventsPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (token) getEvents().then((all) => setEvents(all.filter((e) => e.hostId === user?.id))).catch(() => {});
+    if (token) getEvents().then((all) => setEvents(all.filter((e) => e.hostId === user?.id).sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()))).catch(() => {});
   }, [token, user]);
 
   const handleCreate = async (e: React.FormEvent) => {

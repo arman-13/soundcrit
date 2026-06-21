@@ -8,8 +8,10 @@ interface AudioPlayerContextType {
   currentTrack: Track | null;
   queue: Track[];
   isPlaying: boolean;
+  isLive: boolean;
   playTrack: (track: Track, queue?: Track[]) => void;
   setIsPlaying: (v: boolean) => void;
+  setIsLive: (v: boolean) => void;
   playNext: () => void;
   playPrev: () => void;
   seekTo: (seconds: number) => void;
@@ -20,8 +22,10 @@ const AudioPlayerContext = createContext<AudioPlayerContextType>({
   currentTrack: null,
   queue: [],
   isPlaying: false,
+  isLive: false,
   playTrack: () => {},
   setIsPlaying: () => {},
+  setIsLive: () => {},
   playNext: () => {},
   playPrev: () => {},
   seekTo: () => {},
@@ -32,6 +36,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [queue, setQueue] = useState<Track[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLive, setIsLive] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playTrack = (track: Track, newQueue?: Track[]) => {
@@ -63,7 +68,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   };
 
   return (
-    <AudioPlayerContext.Provider value={{ currentTrack, queue, isPlaying, playTrack, setIsPlaying, playNext, playPrev, seekTo, audioRef }}>
+    <AudioPlayerContext.Provider value={{ currentTrack, queue, isPlaying, isLive, playTrack, setIsPlaying, setIsLive, playNext, playPrev, seekTo, audioRef }}>
       {children}
     </AudioPlayerContext.Provider>
   );

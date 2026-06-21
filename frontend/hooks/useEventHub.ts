@@ -34,6 +34,12 @@ export function useEventHub(
 
     builder.on("CountdownStarted", (seconds: number) => {
       setCountdown(seconds);
+      const interval = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev === null || prev <= 1) { clearInterval(interval); return null; }
+          return prev - 1;
+        });
+      }, 1000);
     });
 
     builder.on("EventEnded", () => {

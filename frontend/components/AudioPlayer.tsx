@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function AudioPlayer() {
-  const { currentTrack, isPlaying, setIsPlaying, playNext, playPrev, queue, audioRef } = useAudioPlayer();
+  const { currentTrack, isPlaying, isLive, setIsPlaying, playNext, playPrev, queue, audioRef } = useAudioPlayer();
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function AudioPlayer() {
       />
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111]/95 backdrop-blur-md border-t border-white/10 h-20">
         {/* Progress bar */}
-        <div className="absolute top-0 left-0 h-0.5 bg-white/10 cursor-pointer w-full" onClick={handleSeek}>
+        <div className={`absolute top-0 left-0 h-0.5 bg-white/10 w-full ${isLive ? "cursor-default" : "cursor-pointer"}`} onClick={isLive ? undefined : handleSeek}>
           <div className="h-full bg-white/70 transition-all" style={{ width: `${progress}%` }} />
         </div>
 
@@ -71,7 +71,7 @@ export default function AudioPlayer() {
 
           {/* Controls */}
           <div className="flex items-center gap-3 shrink-0">
-            <button onClick={playPrev} disabled={!hasPrev}
+            <button onClick={playPrev} disabled={!hasPrev || isLive}
               className="text-white/30 hover:text-white/70 disabled:opacity-20 transition-colors" aria-label="Previous">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" />
@@ -92,7 +92,7 @@ export default function AudioPlayer() {
               )}
             </button>
 
-            <button onClick={playNext} disabled={!hasNext}
+            <button onClick={playNext} disabled={!hasNext || isLive}
               className="text-white/30 hover:text-white/70 disabled:opacity-20 transition-colors" aria-label="Next">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 3.9V8.1L8.5 12zM16 6h2v12h-2z" />

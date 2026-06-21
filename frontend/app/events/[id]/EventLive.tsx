@@ -32,7 +32,12 @@ function toTrack(et: EventTrack): Track {
 
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { playTrack, seekTo } = useAudioPlayer();
+  const { playTrack, seekTo, setIsLive } = useAudioPlayer();
+
+  useEffect(() => {
+    setIsLive(true);
+    return () => setIsLive(false);
+  }, [setIsLive]);
   const { currentTrackIndex: hubTrackIndex, countdown } = useEventHub(
     event.id, token,
     (comment) => setComments((prev) => [comment, ...prev]),
@@ -71,6 +76,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     const track = sorted[hubTrackIndex];
     if (track) {
       playTrack(toTrack(track), sorted.map(toTrack));
+      setTimeout(() => seekTo(0), 100);
       setComments([]);
       getEventComments(event.id, track.id).then(setComments).catch(() => {});
     }
@@ -101,21 +107,11 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   };
 
   if (countdown !== null) {
-    const next = approvedTracks[trackIndex + 1];
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center pb-20">
-        <p className="text-xs tracking-widest uppercase text-white/30 mb-8">Up Next</p>
-        {next && (
-          <>
-            <div className="relative w-32 h-32 rounded-lg overflow-hidden mb-6 mx-auto">
-              <Image src={next.coverImageUrl} alt={next.title} fill className="object-cover opacity-60" />
-            </div>
-            <h2 className="text-2xl font-light text-white/80 mb-1">{next.title}</h2>
-            <p className="text-sm text-white/40 mb-10">{next.artist}</p>
-          </>
-        )}
-        <p className="text-6xl font-light text-white/90 tabular-nums">{String(Math.ceil(countdown)).padStart(2, "0")}</p>
-        <p className="text-xs text-white/25 mt-2">seconds</p>
+        <p className="text-xs tracking-widest uppercase text-white/30 mb-8">Next track in</p>
+        <p className="text-8xl font-light text-white/90 tabular-nums">{String(Math.ceil(countdown)).padStart(2, "0")}</p>
+        <p className="text-xs text-white/25 mt-3">seconds</p>
       </div>
     );
   }

@@ -13,7 +13,7 @@ export default async function HomePage() {
     getChartedTracks(),
     getEvents(),
   ]);
-  const upcomingEvents = events.filter((e) => e.status === "Upcoming").slice(0, 4);
+  const upcomingEvents = events.filter((e) => e.status === "Upcoming").sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()).slice(0, 4);
   const liveEvents = events.filter((e) => e.status === "Live");
 
   const tracks = tracksRes.data;
@@ -22,23 +22,13 @@ export default async function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="flex flex-col items-center justify-center text-center px-6 pt-20 pb-16">
+      <section className="flex flex-col items-center justify-center text-center px-6 pt-20 pb-12">
         <h1 className="text-3xl md:text-5xl font-light tracking-tight text-white/90 leading-tight mb-5">
           Music with a story
         </h1>
-        <p className="text-base text-white/40 leading-relaxed mb-12" style={{ maxWidth: 480 }}>
-          Every track comes with the story behind it — and listening is never a solo experience
+        <p className="text-base text-white/40 leading-relaxed" style={{ maxWidth: 480 }}>
+          Listen live with others — every session is saved as a record
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full" style={{ maxWidth: 580 }}>
-          <div className="border border-white/8 rounded-xl px-5 py-6 text-left bg-white/[0.02]">
-            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">Story Mode</p>
-            <p className="text-sm text-white/40 leading-relaxed">Images and words that appear in sync with the music as it plays.</p>
-          </div>
-          <div className="border border-white/8 rounded-xl px-5 py-6 text-left bg-white/[0.02]">
-            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">Live Sessions</p>
-            <p className="text-sm text-white/40 leading-relaxed">Listen together in real time. Every session is saved as a record.</p>
-          </div>
-        </div>
       </section>
 
       <div className="max-w-6xl mx-auto px-6 pb-32 space-y-24">
@@ -54,25 +44,25 @@ export default async function HomePage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[...liveEvents, ...upcomingEvents].map((ev) => (
-                <Link key={ev.id} href={`/events/${ev.id}`} className="group relative rounded-xl overflow-hidden border border-white/8 bg-white/[0.02] hover:border-white/20 transition-colors">
+                <Link key={ev.id} href={`/events/${ev.id}`} className={`group relative rounded-xl overflow-hidden border border-white/8 hover:border-white/20 transition-colors ${ev.status === "Live" ? "bg-black" : "bg-white/[0.02]"}`}>
                   {ev.coverImageUrl && (
                     <div className="relative w-full aspect-video">
-                      <Image src={ev.coverImageUrl} alt={ev.title} fill className="object-cover opacity-50 group-hover:opacity-65 transition-opacity" />
+                      <Image src={ev.coverImageUrl} alt={ev.title} fill className={`object-cover transition-opacity ${ev.status === "Live" ? "opacity-40 group-hover:opacity-55" : "opacity-50 group-hover:opacity-65"}`} />
                     </div>
                   )}
-                  <div className={`px-4 py-4 ${!ev.coverImageUrl ? "pt-6" : ""}`}>
-                    <div className="flex items-center gap-2 mb-2">
+                  <div className="px-4 py-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-white/80 truncate group-hover:text-white transition-colors">{ev.title}</p>
                       {ev.status === "Live" ? (
-                        <span className="flex items-center gap-1.5 text-xs text-red-400/80">
+                        <span className="flex items-center gap-1.5 text-xs text-red-400/80 shrink-0 ml-2">
                           <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
                           Live
                         </span>
                       ) : (
-                        <span className="text-xs text-white/30">Upcoming</span>
+                        <EventTimeLabel scheduledAt={ev.scheduledAt} />
                       )}
                     </div>
-                    <p className="text-sm font-medium text-white/80 truncate group-hover:text-white transition-colors">{ev.title}</p>
-                    <p className="text-xs text-white/30 mt-1">
+                    <p className="text-xs text-white/30">
                       {new Date(ev.scheduledAt.endsWith("Z") ? ev.scheduledAt : ev.scheduledAt + "Z").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </p>
                   </div>
@@ -135,6 +125,19 @@ export default async function HomePage() {
       </div>
     </div>
   );
+}
+
+function EventTimeLabel({ scheduledAt }: { scheduledAt: string }) {
+  const date = new Date(scheduledAt.endsWith("Z") ? scheduledAt : scheduledAt + "Z");
+  const diffDays = (date.getTime() - Date.now()) / 86400000;
+
+  if (diffDays < 0)  return <span className="text-xs font-medium text-white/15 shrink-0 ml-2">Ended</span>;
+  if (diffDays < 1/48) return <span className="text-xs font-medium text-yellow-400/60 shrink-0 ml-2 animate-pulse">Starting Soon</span>;
+  if (diffDays < 1)  return <span className="text-xs font-medium text-yellow-400/40 shrink-0 ml-2">Today</span>;
+  if (diffDays < 2)  return <span className="text-xs font-medium text-amber-400/40 shrink-0 ml-2">Tomorrow</span>;
+  if (diffDays < 7)  return <span className="text-xs font-medium text-orange-400/35 shrink-0 ml-2">This Week</span>;
+  if (diffDays < 31) return <span className="text-xs font-medium text-orange-600/35 shrink-0 ml-2">This Month</span>;
+  return <span className="text-xs font-medium text-white/40 shrink-0 ml-2">Upcoming</span>;
 }
 
 // Server-renderable wrapper — actual play interaction is in the client component
