@@ -44,5 +44,26 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         modelBuilder.Entity<Follow>()
             .HasKey(f => new { f.FollowerId, f.FolloweeId });
+
+        // Indexes for common query patterns
+        modelBuilder.Entity<Event>()
+            .HasIndex(e => e.Status);
+        modelBuilder.Entity<Event>()
+            .HasIndex(e => e.ScheduledAt);
+        modelBuilder.Entity<Event>()
+            .HasIndex(e => new { e.Status, e.ScheduledAt });
+
+        modelBuilder.Entity<EventTrack>()
+            .HasIndex(et => et.EventId);
+        modelBuilder.Entity<EventTrack>()
+            .HasIndex(et => new { et.EventId, et.Status });
+
+        modelBuilder.Entity<EventComment>()
+            .HasIndex(ec => new { ec.EventId, ec.EventTrackId });
+
+        modelBuilder.Entity<Track>()
+            .HasIndex(t => t.IsPublished);
+        modelBuilder.Entity<Track>()
+            .HasIndex(t => new { t.IsPublished, t.PublishedAt });
     }
 }

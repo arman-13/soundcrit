@@ -3,10 +3,7 @@ import { Album, AlbumWithTracks, Comment, EventComment, EventRequest, EventSync,
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    next: { revalidate: 60 },
-    ...options,
-  });
+  const res = await fetch(`${API_URL}${path}`, options);
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`API error: ${res.status} — ${body}`);

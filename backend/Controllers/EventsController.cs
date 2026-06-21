@@ -26,51 +26,55 @@ public class EventsController : ControllerBase
     public async Task<ActionResult<IEnumerable<EventSummaryDto>>> GetAll()
     {
         var events = await _db.Events
-            .Include(e => e.EventTracks).ThenInclude(et => et.Track)
-            .OrderByDescending(e => e.ScheduledAt)
-            .ToListAsync();
-
-        var ordered = events
             .OrderBy(e => e.Status == "Live" ? 0 : e.Status == "Upcoming" ? 1 : 2)
             .ThenByDescending(e => e.ScheduledAt)
-            .Select(e =>
-            {
-                var approved = e.EventTracks.Where(t => t.Status == "Approved").ToList();
-                var genres = approved.Select(t => t.Track.Genre).Where(g => !string.IsNullOrEmpty(g)).Distinct().ToList();
-                return new EventSummaryDto(e.Id, e.Title, e.Description, e.CoverImageUrl,
-                    e.ScheduledAt, e.Status, e.HostId, approved.Count, genres!);
-            });
+            .Select(e => new EventSummaryDto(
+                e.Id, e.Title, e.Description, e.CoverImageUrl, e.ScheduledAt, e.Status, e.HostId,
+                e.EventTracks.Count(t => t.Status == "Approved"),
+                e.EventTracks
+                    .Where(t => t.Status == "Approved" && t.Track.Genre != null && t.Track.Genre != "")
+                    .Select(t => t.Track.Genre!)
+                    .Distinct()
+                    .ToList()
+            ))
+            .ToListAsync();
 
-        return Ok(ordered);
+        return Ok(events);
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<EventDetailDto>> GetById(int id)
     {
-        var ev = await _db.Events
-            .Include(e => e.EventTracks).ThenInclude(et => et.Track)
-            .FirstOrDefaultAsync(e => e.Id == id);
+        var result = await _db.Events
+            .Where(e => e.Id == id)
+            .Select(e => new
+            {
+                Event = e,
+                Host = _db.Users.Where(u => u.Id == e.HostId)
+                    .Select(u => new { u.DisplayName, u.UserName, u.AvatarUrl })
+                    .FirstOrDefault(),
+                Tracks = e.EventTracks
+                    .OrderBy(t => t.Order)
+                    .Select(t => new EventTrackDto(
+                        t.Id, t.TrackId, t.Track.Title, t.Track.Artist,
+                        t.Track.Duration, t.Track.AudioUrl ?? "", t.Track.CoverImageUrl,
+                        t.Track.Genre, t.Track.Mood, t.Order, t.Status, t.UserId, t.UploadToProfile))
+                    .ToList(),
+            })
+            .FirstOrDefaultAsync();
 
-        if (ev is null) return NotFound();
+        if (result is null) return NotFound();
 
-        var host = await _userManager.FindByIdAsync(ev.HostId);
-        var tracks = ev.EventTracks
-            .Where(t => t.Status == "Approved")
-            .OrderBy(t => t.Order)
-            .Select(t => new EventTrackDto(t.Id, t.TrackId, t.Track.Title, t.Track.Artist,
-                t.Track.Duration, t.Track.AudioUrl ?? "", t.Track.CoverImageUrl, t.Track.Genre, t.Track.Mood,
-                t.Order, t.Status, t.UserId, t.UploadToProfile))
-            .ToList();
-
+        var approvedTracks = result.Tracks.Where(t => t.Status == "Approved").ToList();
+        var genres = approvedTracks.Select(t => t.Genre).Where(g => !string.IsNullOrEmpty(g)).Distinct().ToList();
+        var ev = result.Event;
         var playback = new PlaybackStateDto(ev.Status, ev.CurrentTrackIndex,
             ev.CurrentTrackStartedAt, ev.CountdownStartedAt, DateTime.UtcNow);
 
-        var genres = tracks.Select(t => t.Genre).Where(g => !string.IsNullOrEmpty(g)).Distinct().ToList();
-
         return Ok(new EventDetailDto(ev.Id, ev.Title, ev.Description, ev.CoverImageUrl,
             ev.ScheduledAt, ev.Status, ev.HostId,
-            host?.DisplayName ?? host?.UserName ?? "Unknown", host?.AvatarUrl,
-            tracks.Count, genres!, tracks, playback));
+            result.Host?.DisplayName ?? result.Host?.UserName ?? "Unknown", result.Host?.AvatarUrl,
+            approvedTracks.Count, genres!, result.Tracks, playback));
     }
 
     [Authorize]

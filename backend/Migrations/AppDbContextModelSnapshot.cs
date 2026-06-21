@@ -241,6 +241,12 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ScheduledAt");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Status", "ScheduledAt");
+
                     b.ToTable("Events", (string)null);
                 });
 
@@ -281,9 +287,9 @@ namespace backend.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EventId");
-
                     b.HasIndex("EventTrackId");
+
+                    b.HasIndex("EventId", "EventTrackId");
 
                     b.ToTable("EventComments", (string)null);
                 });
@@ -356,6 +362,8 @@ namespace backend.Migrations
                     b.HasIndex("EventId");
 
                     b.HasIndex("TrackId");
+
+                    b.HasIndex("EventId", "Status");
 
                     b.ToTable("EventTracks", (string)null);
                 });
@@ -488,6 +496,10 @@ namespace backend.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsPublished");
+
+                    b.HasIndex("IsPublished", "PublishedAt");
 
                     b.ToTable("Tracks");
                 });

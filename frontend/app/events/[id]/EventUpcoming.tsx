@@ -66,12 +66,19 @@ export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
     if (isHost) {
       getEventRequests(event.id, token).then(setRequests).catch(() => {});
       getEventTracks(event.id, token).then(setSubmissions).catch(() => {});
-    }
-    // Load own tracks for approved members and host
-    getAllTracksAdmin(token).then((res) => setMyTracks(res.data)).catch(() => {});
-    // Check own request status
-    if (!isHost) {
-      getMyEventRequest(event.id, token).then(({ status }) => { if (status) setRequestStatus(status); }).catch(() => {});
+      getAllTracksAdmin(token).then((res) => setMyTracks(res.data)).catch(() => {});
+    } else {
+      // Check own request status first, then conditionally load tracks
+      getMyEventRequest(event.id, token)
+        .then(({ status }) => {
+          if (status) {
+            setRequestStatus(status);
+            if (status === "Approved") {
+              getAllTracksAdmin(token).then((res) => setMyTracks(res.data)).catch(() => {});
+            }
+          }
+        })
+        .catch(() => {});
     }
   }, [event.id, token, isHost]);
 
