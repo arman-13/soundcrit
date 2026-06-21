@@ -14,7 +14,21 @@ export default function AudioPlayer() {
     if (!audio || !currentTrack) return;
     audio.src = currentTrack.audioUrl;
     audio.play().then(() => setIsPlaying(true)).catch(() => {});
-  }, [currentTrack, setIsPlaying, audioRef]);
+
+    if ("mediaSession" in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.albumTitle || undefined,
+        artwork: [{ src: currentTrack.coverImageUrl, sizes: "512x512", type: "image/jpeg" }],
+      });
+      navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true));
+      navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false));
+      const idx = queue.findIndex((t) => t.id === currentTrack.id);
+      navigator.mediaSession.setActionHandler("previoustrack", idx > 0 && !isLive ? playPrev : null);
+      navigator.mediaSession.setActionHandler("nexttrack", idx < queue.length - 1 && !isLive ? playNext : null);
+    }
+  }, [currentTrack, setIsPlaying, audioRef, queue, isLive, playPrev, playNext]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -36,11 +50,11 @@ export default function AudioPlayer() {
     audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
   };
 
-  const currentIndex = queue.findIndex((t) => t.id === currentTrack?.id);
+  if (!currentTrack) return null;
+
+  const currentIndex = queue.findIndex((t) => t.id === currentTrack.id);
   const hasPrev = currentIndex > 0;
   const hasNext = currentIndex < queue.length - 1;
-
-  if (!currentTrack) return null;
 
   return (
     <>
