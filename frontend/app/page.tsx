@@ -42,9 +42,9 @@ export default async function HomePage() {
                 See all →
               </Link>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {[...liveEvents, ...upcomingEvents].map((ev) => (
-                <Link key={ev.id} href={`/events/${ev.id}`} className={`group relative rounded-xl overflow-hidden border border-white/8 hover:border-white/20 transition-colors ${ev.status === "Live" ? "bg-black" : "bg-white/[0.02]"}`}>
+                <Link key={ev.id} href={`/events/${ev.id}`} className={`group relative rounded-xl overflow-hidden border border-white/8 hover:border-white/20 transition-colors shrink-0 w-56 ${ev.status === "Live" ? "bg-black" : "bg-white/[0.02]"}`}>
                   {ev.coverImageUrl && (
                     <div className="relative w-full aspect-video">
                       <Image src={ev.coverImageUrl} alt={ev.title} fill className={`object-cover transition-opacity ${ev.status === "Live" ? "opacity-40 group-hover:opacity-55" : "opacity-50 group-hover:opacity-65"}`} />
@@ -80,9 +80,11 @@ export default async function HomePage() {
               See all →
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
             {tracks.map((track) => (
-              <TrackCard key={track.id} track={track} queue={tracks} />
+              <div key={track.id} className="shrink-0 w-36">
+                <TrackCard track={track} queue={tracks} />
+              </div>
             ))}
           </div>
         </section>
@@ -91,9 +93,9 @@ export default async function HomePage() {
         {albums.length > 0 && (
           <section>
             <h2 className="text-xs tracking-widest uppercase text-white/30 mb-8">Albums</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {albums.map((album) => (
-                <Link key={album.id} href={`/albums/${album.id}`} className="group">
+                <Link key={album.id} href={`/albums/${album.id}`} className="group shrink-0 w-36">
                   <div className="relative aspect-square rounded overflow-hidden mb-3 bg-white/5">
                     <Image
                       src={album.coverImageUrl}
