@@ -9,27 +9,16 @@ export default function AudioPlayer() {
   const { currentTrack, isPlaying, isLive, setIsPlaying, playNext, playPrev, queue, audioRef, dismiss } = useAudioPlayer();
   const [progress, setProgress] = useState(0);
 
+  // Set audio src only when the track ID changes — never on re-renders
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentTrack) return;
     audio.src = currentTrack.audioUrl;
     audio.play().then(() => setIsPlaying(true)).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTrack?.id]);
 
-    if ("mediaSession" in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentTrack.title,
-        artist: currentTrack.artist,
-        album: currentTrack.albumTitle || undefined,
-        artwork: [{ src: currentTrack.coverImageUrl, sizes: "512x512", type: "image/jpeg" }],
-      });
-      navigator.mediaSession.setActionHandler("play", () => setIsPlaying(true));
-      navigator.mediaSession.setActionHandler("pause", () => setIsPlaying(false));
-      const idx = queue.findIndex((t) => t.id === currentTrack.id);
-      navigator.mediaSession.setActionHandler("previoustrack", idx > 0 && !isLive ? playPrev : null);
-      navigator.mediaSession.setActionHandler("nexttrack", idx < queue.length - 1 && !isLive ? playNext : null);
-    }
-  }, [currentTrack, setIsPlaying, audioRef, queue, isLive, playPrev, playNext]);
-
+  // Sync play/pause state (from UI or lock screen) to the audio element
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -37,10 +26,44 @@ export default function AudioPlayer() {
     else audio.pause();
   }, [isPlaying, audioRef]);
 
+  // Update Media Session metadata and handlers separately — never resets src
+  useEffect(() => {
+    if (!("mediaSession" in navigator) || !currentTrack) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: currentTrack.title,
+      artist: currentTrack.artist,
+      album: currentTrack.albumTitle || undefined,
+      artwork: [{ src: currentTrack.coverImageUrl, sizes: "512x512", type: "image/jpeg" }],
+    });
+
+    const audio = audioRef.current;
+    navigator.mediaSession.setActionHandler("play", () => {
+      audio?.play().catch(() => {});
+      setIsPlaying(true);
+    });
+    navigator.mediaSession.setActionHandler("pause", () => {
+      audio?.pause();
+      setIsPlaying(false);
+    });
+
+    const idx = queue.findIndex((t) => t.id === currentTrack.id);
+    navigator.mediaSession.setActionHandler("previoustrack", idx > 0 && !isLive ? playPrev : null);
+    navigator.mediaSession.setActionHandler("nexttrack", idx < queue.length - 1 && !isLive ? playNext : null);
+  }, [currentTrack, queue, isLive, playPrev, playNext, setIsPlaying, audioRef]);
+
+  // Keep position state updated for lock screen scrubber
   const handleTimeUpdate = () => {
     const audio = audioRef.current;
     if (!audio?.duration) return;
     setProgress((audio.currentTime / audio.duration) * 100);
+    if ("mediaSession" in navigator && audio.duration) {
+      navigator.mediaSession.setPositionState({
+        duration: audio.duration,
+        playbackRate: audio.playbackRate,
+        position: audio.currentTime,
+      });
+    }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -58,11 +81,7 @@ export default function AudioPlayer() {
 
   return (
     <>
-      <audio
-        ref={audioRef}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={playNext}
-      />
+      <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={playNext} />
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111]/95 backdrop-blur-md border-t border-white/10 h-20">
         {/* Progress bar */}
         <div className={`absolute top-0 left-0 h-0.5 bg-white/10 w-full ${isLive ? "cursor-default" : "cursor-pointer"}`} onClick={isLive ? undefined : handleSeek}>
