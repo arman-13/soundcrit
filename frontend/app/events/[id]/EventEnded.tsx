@@ -61,12 +61,29 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-16 pb-28">
-      <div className="mb-8">
-        <p className="text-xs tracking-widest uppercase text-white/25 mb-2">Session Ended</p>
-        <h1 className="text-3xl font-light text-white/90">{event.title}</h1>
-        <p className="text-sm text-white/30 mt-1">
-          {new Date(event.scheduledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs tracking-widest uppercase text-white/25 mb-2">Session Ended</p>
+          <h1 className="text-3xl font-light text-white/90">{event.title}</h1>
+          <p className="text-sm text-white/30 mt-1">
+            {new Date(event.scheduledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+          </p>
+        </div>
+        {approvedTracks.length > 0 && (
+          <button
+            onClick={() => {
+              const first = approvedTracks[0];
+              setSelectedTrack(first);
+              globalPlay(toTrack(first), approvedTracks.map(toTrack));
+              getEventComments(event.id, first.id).then(setComments).catch(() => {});
+              setLoadedTrackId(first.id);
+            }}
+            className="flex items-center gap-2 shrink-0 mt-1 bg-white text-black text-sm font-medium px-4 py-2 rounded-full hover:bg-white/90 transition-colors"
+          >
+            <svg className="w-4 h-4 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+            Play All
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row gap-8">
