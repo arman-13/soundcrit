@@ -6,8 +6,20 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function AudioPlayer() {
-  const { currentTrack, isPlaying, isLive, setIsPlaying, playNext, playPrev, queue, audioRef, dismiss } = useAudioPlayer();
+  const { currentTrack, isPlaying, isLive, isCountdown, setIsPlaying, playNext, playPrev, queue, audioRef, dismiss } = useAudioPlayer();
   const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (e.target as HTMLElement).isContentEditable) return;
+      e.preventDefault();
+      setIsPlaying(!isPlaying);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying, setIsPlaying]);
 
   // Set audio src only when the track ID changes — never on re-renders
   useEffect(() => {
@@ -50,6 +62,16 @@ export default function AudioPlayer() {
     const idx = queue.findIndex((t) => t.id === currentTrack.id);
     navigator.mediaSession.setActionHandler("previoustrack", idx > 0 && !isLive ? playPrev : null);
     navigator.mediaSession.setActionHandler("nexttrack", idx < queue.length - 1 && !isLive ? playNext : null);
+    // Disable seek controls during live — null removes them from Control Center
+    navigator.mediaSession.setActionHandler("seekto", isLive ? null : (e) => {
+      if (audio && e.seekTime != null) { audio.currentTime = e.seekTime; }
+    });
+    navigator.mediaSession.setActionHandler("seekforward", isLive ? null : (e) => {
+      if (audio) audio.currentTime = Math.min(audio.duration, audio.currentTime + (e.seekOffset ?? 10));
+    });
+    navigator.mediaSession.setActionHandler("seekbackward", isLive ? null : (e) => {
+      if (audio) audio.currentTime = Math.max(0, audio.currentTime - (e.seekOffset ?? 10));
+    });
   }, [currentTrack, queue, isLive, playPrev, playNext, setIsPlaying, audioRef]);
 
   // Keep position state updated for lock screen scrubber
@@ -57,7 +79,7 @@ export default function AudioPlayer() {
     const audio = audioRef.current;
     if (!audio?.duration) return;
     setProgress((audio.currentTime / audio.duration) * 100);
-    if ("mediaSession" in navigator && audio.duration) {
+    if (!isLive && "mediaSession" in navigator && audio.duration) {
       navigator.mediaSession.setPositionState({
         duration: audio.duration,
         playbackRate: audio.playbackRate,
@@ -81,29 +103,47 @@ export default function AudioPlayer() {
 
   return (
     <>
-      <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={playNext} />
+      <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={isLive ? undefined : playNext} />
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111]/95 backdrop-blur-md border-t border-white/10 h-20">
-        {/* Progress bar */}
-        <div className={`absolute top-0 left-0 h-0.5 bg-white/10 w-full ${isLive ? "cursor-default" : "cursor-pointer"}`} onClick={isLive ? undefined : handleSeek}>
-          <div className="h-full bg-white/70 transition-all" style={{ width: `${progress}%` }} />
-        </div>
+        {/* Progress bar — hidden during live */}
+        {!isLive && (
+          <div className="absolute top-0 left-0 h-0.5 bg-white/10 w-full cursor-pointer" onClick={handleSeek}>
+            <div className="h-full bg-white/70 transition-all" style={{ width: `${progress}%` }} />
+          </div>
+        )}
 
         <div className="max-w-6xl mx-auto px-6 h-full flex items-center gap-4">
           {/* Cover + track info */}
-          <Link href={`/tracks/${currentTrack.id}`} className="flex items-center gap-3 min-w-0 flex-1 group">
-            <div className="relative w-10 h-10 rounded overflow-hidden shrink-0">
-              <Image src={currentTrack.coverImageUrl} alt={currentTrack.title} fill className="object-cover" />
+          {isLive && isCountdown ? (
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-white/20">—</p>
+                <p className="text-xs text-white/15">—</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate group-hover:text-white/80 transition-colors">
-                {currentTrack.title}
-              </p>
-              <p className="text-xs text-white/40 truncate">{currentTrack.artist}</p>
-            </div>
-          </Link>
+          ) : (
+            <Link href={`/tracks/${currentTrack.id}`} className="flex items-center gap-3 min-w-0 flex-1 group">
+              <div className="relative w-10 h-10 rounded overflow-hidden shrink-0">
+                <Image src={currentTrack.coverImageUrl} alt={currentTrack.title} fill className="object-cover" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-white truncate group-hover:text-white/80 transition-colors">
+                  {currentTrack.title}
+                </p>
+                <p className="text-xs text-white/40 truncate">{currentTrack.artist}</p>
+              </div>
+            </Link>
+          )}
 
           {/* Controls */}
           <div className="flex items-center gap-3 shrink-0">
+            {isLive && (
+              <div className="flex items-center gap-1.5 mr-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-xs text-red-400/80 tracking-widest uppercase">Live</span>
+              </div>
+            )}
             <button onClick={playPrev} disabled={!hasPrev || isLive}
               className="text-white/30 hover:text-white/70 disabled:opacity-20 transition-colors" aria-label="Previous">
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">

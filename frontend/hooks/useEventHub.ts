@@ -10,6 +10,7 @@ export function useEventHub(
   eventId: number,
   token?: string | null,
   onNewComment?: (comment: EventComment) => void,
+  onCountdownStarted?: (seconds: number) => void,
 ) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -18,6 +19,8 @@ export function useEventHub(
   const connectionRef = useRef<signalR.HubConnection | null>(null);
   const onNewCommentRef = useRef(onNewComment);
   onNewCommentRef.current = onNewComment;
+  const onCountdownStartedRef = useRef(onCountdownStarted);
+  onCountdownStartedRef.current = onCountdownStarted;
 
   useEffect(() => {
     const builder = new signalR.HubConnectionBuilder()
@@ -33,6 +36,7 @@ export function useEventHub(
     });
 
     builder.on("CountdownStarted", (seconds: number) => {
+      onCountdownStartedRef.current?.(seconds);
       setCountdown(seconds);
       const interval = setInterval(() => {
         setCountdown((prev) => {

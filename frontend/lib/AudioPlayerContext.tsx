@@ -9,9 +9,13 @@ interface AudioPlayerContextType {
   queue: Track[];
   isPlaying: boolean;
   isLive: boolean;
+  isCountdown: boolean;
+  liveEventId: number | null;
   playTrack: (track: Track, queue?: Track[]) => void;
   setIsPlaying: (v: boolean) => void;
   setIsLive: (v: boolean) => void;
+  setIsCountdown: (v: boolean) => void;
+  setLiveEventId: (id: number | null) => void;
   dismiss: () => void;
   playNext: () => void;
   playPrev: () => void;
@@ -24,9 +28,13 @@ const AudioPlayerContext = createContext<AudioPlayerContextType>({
   queue: [],
   isPlaying: false,
   isLive: false,
+  isCountdown: false,
+  liveEventId: null,
   playTrack: () => {},
   setIsPlaying: () => {},
   setIsLive: () => {},
+  setIsCountdown: () => {},
+  setLiveEventId: () => {},
   playNext: () => {},
   playPrev: () => {},
   seekTo: () => {},
@@ -39,6 +47,8 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [queue, setQueue] = useState<Track[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLive, setIsLive] = useState(false);
+  const [isCountdown, setIsCountdown] = useState(false);
+  const [liveEventId, setLiveEventId] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playTrack = (track: Track, newQueue?: Track[]) => {
@@ -74,11 +84,18 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     if (audio) { audio.pause(); audio.src = ""; }
     setCurrentTrack(null);
     setIsPlaying(false);
+    setIsCountdown(false);
+    setIsLive(false);
+    setLiveEventId(null);
     setQueue([]);
   };
 
   return (
-    <AudioPlayerContext.Provider value={{ currentTrack, queue, isPlaying, isLive, playTrack, setIsPlaying, setIsLive, playNext, playPrev, seekTo, dismiss, audioRef }}>
+    <AudioPlayerContext.Provider value={{
+      currentTrack, queue, isPlaying, isLive, isCountdown, liveEventId,
+      playTrack, setIsPlaying, setIsLive, setIsCountdown, setLiveEventId,
+      playNext, playPrev, seekTo, dismiss, audioRef,
+    }}>
       {children}
     </AudioPlayerContext.Provider>
   );

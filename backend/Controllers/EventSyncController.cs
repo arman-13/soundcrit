@@ -28,7 +28,7 @@ public class EventSyncController : ControllerBase
             elapsed = (now - ev.CurrentTrackStartedAt.Value).TotalSeconds;
 
         if (ev.CountdownStartedAt.HasValue)
-            countdown = Math.Max(0, 60 - (now - ev.CountdownStartedAt.Value).TotalSeconds);
+            countdown = Math.Max(0, 40 - (now - ev.CountdownStartedAt.Value).TotalSeconds);
 
         return Ok(new EventSyncDto(ev.Status, ev.CurrentTrackIndex, elapsed, countdown, now));
     }

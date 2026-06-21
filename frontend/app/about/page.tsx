@@ -7,7 +7,7 @@ export default async function AboutPage() {
   const team = await getTeam();
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-20">
+    <div className="max-w-6xl mx-auto px-6 py-20">2
 
       {/* Mission */}
       <section className="mb-24 max-w-2xl">

@@ -42,7 +42,7 @@ public record UpdateEventRequest(
 );
 
 public record EventRequestDto(
-    int Id, string UserId, string? Message, string Status, DateTime RequestedAt
+    int Id, string UserId, string DisplayName, string? Message, string Status, DateTime RequestedAt
 );
 
 public record SubmitJoinRequestBody(string? Message);

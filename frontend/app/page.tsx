@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { getAlbums, getChartedTracks, getTracks, getEvents } from "@/lib/api";
 import TrackCard from "@/components/TrackCard";
 import ChartedRow from "@/components/ChartedRow";
+import AutoRefresh from "@/components/AutoRefresh";
+import EventCardCover from "@/components/EventCardCover";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -21,6 +23,7 @@ export default async function HomePage() {
 
   return (
     <div>
+      <AutoRefresh intervalMs={15000} />
       {/* Hero */}
       <section className="flex flex-col items-center justify-center text-center px-6 pt-20 pb-12">
         <h1 className="text-3xl md:text-5xl font-light tracking-tight text-white/90 leading-tight mb-5">
@@ -45,22 +48,17 @@ export default async function HomePage() {
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {[...liveEvents, ...upcomingEvents].map((ev) => (
                 <Link key={ev.id} href={`/events/${ev.id}`} className={`group relative rounded-xl overflow-hidden border border-white/8 hover:border-white/20 transition-colors shrink-0 w-56 ${ev.status === "Live" ? "bg-black" : "bg-white/[0.02]"}`}>
-                  {ev.coverImageUrl && (
-                    <div className="relative w-full aspect-video">
-                      <Image src={ev.coverImageUrl} alt={ev.title} fill className={`object-cover transition-opacity ${ev.status === "Live" ? "opacity-40 group-hover:opacity-55" : "opacity-50 group-hover:opacity-65"}`} />
-                    </div>
-                  )}
+                  <EventCardCover
+                    eventId={ev.id}
+                    coverImageUrl={ev.coverImageUrl}
+                    alt={ev.title}
+                    containerClassName="relative w-full aspect-video"
+                    className={`object-cover ${ev.status === "Live" ? "opacity-40 group-hover:opacity-55" : "opacity-50 group-hover:opacity-65"}`}
+                  />
                   <div className="px-4 py-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-medium text-white/80 truncate group-hover:text-white transition-colors">{ev.title}</p>
-                      {ev.status === "Live" ? (
-                        <span className="flex items-center gap-1.5 text-xs text-red-400/80 shrink-0 ml-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                          Live
-                        </span>
-                      ) : (
-                        <EventTimeLabel scheduledAt={ev.scheduledAt} />
-                      )}
+                      <EventTimeLabel scheduledAt={ev.scheduledAt} status={ev.status} />
                     </div>
                     <p className="text-xs text-white/30">
                       {new Date(ev.scheduledAt.endsWith("Z") ? ev.scheduledAt : ev.scheduledAt + "Z").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -129,11 +127,15 @@ export default async function HomePage() {
   );
 }
 
-function EventTimeLabel({ scheduledAt }: { scheduledAt: string }) {
+function EventTimeLabel({ scheduledAt, status }: { scheduledAt: string; status: string }) {
+  if (status === "Live") return (
+    <span className="flex items-center gap-1.5 text-xs font-medium text-red-400/80 shrink-0 ml-2">
+      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Live
+    </span>
+  );
+  if (status === "Ended") return <span className="text-xs font-medium text-white/15 shrink-0 ml-2">Ended</span>;
   const date = new Date(scheduledAt.endsWith("Z") ? scheduledAt : scheduledAt + "Z");
   const diffDays = (date.getTime() - Date.now()) / 86400000;
-
-  if (diffDays < 0)  return <span className="text-xs font-medium text-white/15 shrink-0 ml-2">Ended</span>;
   if (diffDays < 1/48) return <span className="text-xs font-medium text-yellow-400/60 shrink-0 ml-2 animate-pulse">Starting Soon</span>;
   if (diffDays < 1)  return <span className="text-xs font-medium text-yellow-400/40 shrink-0 ml-2">Today</span>;
   if (diffDays < 2)  return <span className="text-xs font-medium text-amber-400/40 shrink-0 ml-2">Tomorrow</span>;

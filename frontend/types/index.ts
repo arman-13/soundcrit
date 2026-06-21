@@ -155,6 +155,7 @@ export interface EventSync {
 export interface EventRequest {
   id: number;
   userId: string;
+  displayName?: string;
   message?: string;
   status: string;
   requestedAt: string;

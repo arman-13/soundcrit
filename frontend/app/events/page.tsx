@@ -4,6 +4,8 @@ import { getEvents } from "@/lib/api";
 import Link from "next/link";
 import Image from "next/image";
 import EventCountdown from "./EventCountdown";
+import AutoRefresh from "@/components/AutoRefresh";
+import EventCardCover from "@/components/EventCardCover";
 
 export default async function EventsPage() {
   let events: import("@/types").LiveEvent[] = [];
@@ -15,6 +17,7 @@ export default async function EventsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-20">
+      <AutoRefresh intervalMs={15000} />
       <div className="mb-12">
         <p className="text-xs tracking-widest uppercase text-white/30 mb-4">Sessions</p>
         <h1 className="text-3xl font-light text-white/90">Events</h1>
@@ -89,11 +92,13 @@ function EventCard({ event }: { event: import("@/types").LiveEvent }) {
 
   return (
     <Link href={`/events/${event.id}`} className={`group flex gap-5 p-5 rounded-xl border border-white/8 hover:border-white/20 transition-colors ${isLive ? "bg-black" : "bg-white/[0.02]"}`}>
-      {event.coverImageUrl && (
-        <div className={`relative w-20 h-20 rounded-lg overflow-hidden shrink-0 ${isLive ? "bg-black" : "bg-white/5"}`}>
-          <Image src={event.coverImageUrl} alt={event.title} fill className={`object-cover transition-opacity ${isLive ? "opacity-60 group-hover:opacity-80" : "opacity-70 group-hover:opacity-90"}`} />
-        </div>
-      )}
+      <EventCardCover
+        eventId={event.id}
+        coverImageUrl={event.coverImageUrl}
+        alt={event.title}
+        containerClassName={`relative w-20 h-20 rounded-lg overflow-hidden shrink-0 ${isLive ? "bg-black" : "bg-white/5"}`}
+        className={`object-cover ${isLive ? "opacity-60 group-hover:opacity-80" : "opacity-70 group-hover:opacity-90"}`}
+      />
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-4 mb-1">
           <h3 className="text-base font-medium text-white/85 group-hover:text-white transition-colors truncate">{event.title}</h3>

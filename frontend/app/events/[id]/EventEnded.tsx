@@ -22,7 +22,7 @@ function toTrack(et: EventTrack): Track {
 
 export default function EventEnded({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { playTrack: globalPlay, seekTo } = useAudioPlayer();
+  const { playTrack: globalPlay, seekTo, setIsLive } = useAudioPlayer();
   const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
   const [selectedTrack, setSelectedTrack] = useState<EventTrack | null>(approvedTracks[0] ?? null);
   const [comments, setComments] = useState<EventComment[]>([]);
@@ -33,6 +33,7 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
 
   const loadComments = async (track: EventTrack) => {
     setSelectedTrack(track);
+    setIsLive(false);
     globalPlay(toTrack(track), approvedTracks.map(toTrack));
     if (loadedTrackId === track.id) return;
     try {
@@ -79,6 +80,7 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
                 onClick={() => {
                   const first = approvedTracks[0];
                   setSelectedTrack(first);
+                  setIsLive(false);
                   globalPlay(toTrack(first), approvedTracks.map(toTrack));
                   getEventComments(event.id, first.id).then(setComments).catch(() => {});
                   setLoadedTrackId(first.id);

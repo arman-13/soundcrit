@@ -7,6 +7,7 @@ import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 function fmtTime(s: number) {
   const m = Math.floor(s / 60);
@@ -32,18 +33,54 @@ function toTrack(et: EventTrack): Track {
 
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { currentTrack: playerTrack, playTrack, seekTo, setIsLive } = useAudioPlayer();
+  const { currentTrack: playerTrack, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId } = useAudioPlayer();
+  const router = useRouter();
 
   useEffect(() => {
     setIsLive(true);
-    return () => setIsLive(false);
-  }, [setIsLive]);
-  const { currentTrackIndex: hubTrackIndex, countdown } = useEventHub(
-    event.id, token,
-    (comment) => setComments((prev) => [comment, ...prev]),
-  );
+    setLiveEventId(event.id);
+    return () => { setIsCountdown(false); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const [countdown, setCountdown] = useState<number | null>(null);
   const [trackIndex, setTrackIndex] = useState(event.playbackState.currentTrackIndex);
   const [elapsed, setElapsed] = useState(0);
+
+  const startCountdown = (seconds: number) => {
+    setIsCountdown(true);
+    setCountdown(seconds);
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev === null || prev <= 1) { clearInterval(interval); return null; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const { currentTrackIndex: hubTrackIndex, eventStatus } = useEventHub(
+    event.id, token,
+    (comment) => setComments((prev) => {
+      const idx = prev.findIndex((c) => c.id < 0 && c.content === comment.content && c.displayName === comment.displayName);
+      if (idx !== -1) {
+        const next = [...prev];
+        next[idx] = comment;
+        return next;
+      }
+      return [comment, ...prev];
+    }),
+    startCountdown,
+  );
+
+  useEffect(() => {
+    if (eventStatus === "Ended") {
+      setIsLive(false);
+      setIsCountdown(false);
+      setLiveEventId(null);
+      router.refresh();
+    }
+  }, [eventStatus, setIsLive, setIsCountdown, setLiveEventId, router]);
+
   const [comments, setComments] = useState<EventComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -52,10 +89,17 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
   const currentTrack = approvedTracks[trackIndex] ?? null;
 
-  // Sync on mount — load audio at correct position and fetch existing comments
+  // Sync on mount — restore playback position and countdown state
   useEffect(() => {
     getEventSync(event.id).then((sync) => {
       setTrackIndex(sync.currentTrackIndex);
+
+      // Mid-countdown: restore countdown timer
+      if (sync.countdownSeconds > 0) {
+        startCountdown(Math.ceil(sync.countdownSeconds));
+        return;
+      }
+
       setElapsed(sync.elapsedSeconds);
       const sorted = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
       const track = sorted[sync.currentTrackIndex];
@@ -70,9 +114,11 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
-  // Track changes from hub — switch to new track from beginning and load its comments
+  // Track changes from hub — clear countdown and switch to new track
   useEffect(() => {
     if (hubTrackIndex === null) return;
+    setCountdown(null);
+    setIsCountdown(false);
     setTrackIndex(hubTrackIndex);
     const sorted = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
     const track = sorted[hubTrackIndex];
@@ -95,28 +141,37 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const handleComment = async () => {
     if (!token || !commentText.trim() || !currentTrack) return;
     setSubmitting(true);
+    const timestamp = Math.max(0, Math.floor(elapsed) - 2);
+    const text = commentText.trim();
+    setCommentText("");
+    // Optimistic add
+    const optimisticId = -Date.now();
+    setComments((prev) => [{
+      id: optimisticId,
+      eventTrackId: currentTrack.id,
+      userId: user?.id ?? "",
+      content: text,
+      trackTimestamp: timestamp,
+      displayName: isAnonymous ? "Anonymous" : (user?.displayName ?? user?.email ?? "You"),
+      isAnonymous,
+      createdAt: new Date().toISOString(),
+    }, ...prev]);
     try {
       await postEventComment(event.id, {
-        content: commentText.trim(),
+        content: text,
         eventTrackId: currentTrack.id,
-        trackTimestamp: Math.floor(elapsed),
+        trackTimestamp: timestamp,
         isAnonymous,
       }, token);
-      setCommentText("");
+    } catch {
+      // Roll back optimistic comment on failure
+      setComments((prev) => prev.filter((c) => c.id !== optimisticId));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (countdown !== null) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center pb-20">
-        <p className="text-xs tracking-widest uppercase text-white/30 mb-8">Next track in</p>
-        <p className="text-8xl font-light text-white/90 tabular-nums">{String(Math.ceil(countdown)).padStart(2, "0")}</p>
-        <p className="text-xs text-white/25 mt-3">seconds</p>
-      </div>
-    );
-  }
+  const isCountdown = countdown !== null;
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16 pb-28">
@@ -128,13 +183,17 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       {currentTrack ? (
         <div className="flex flex-col md:flex-row gap-8 mb-12">
           <div className="relative w-full md:w-56 aspect-square rounded-xl overflow-hidden bg-white/5 shrink-0">
-            <Image src={currentTrack.coverImageUrl} alt={currentTrack.title} fill className="object-cover" />
+            {!isCountdown && <Image src={currentTrack.coverImageUrl} alt={currentTrack.title} fill className="object-cover" />}
           </div>
           <div className="flex flex-col justify-center">
-            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">{currentTrack.genre}</p>
-            <h1 className="text-3xl font-light text-white/90 mb-1">{currentTrack.title}</h1>
-            <p className="text-base text-white/45 mb-4">{currentTrack.artist}</p>
-            <p className="text-xs text-white/25 tabular-nums">{fmtTime(elapsed)} / {currentTrack.duration}</p>
+            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">{isCountdown ? "—" : currentTrack.genre}</p>
+            <h1 className="text-3xl font-light text-white/90 mb-1">
+              {isCountdown
+                ? <span className="flex items-baseline gap-3">_ <span className="text-xl text-white/40 tabular-nums">{String(Math.ceil(countdown!)).padStart(2, "0")}s</span></span>
+                : currentTrack.title}
+            </h1>
+            <p className="text-base text-white/45 mb-4">{isCountdown ? "—" : currentTrack.artist}</p>
+            {!isCountdown && <p className="text-xs text-white/25 tabular-nums">{fmtTime(elapsed)} / {currentTrack.duration}</p>}
           </div>
         </div>
       ) : (

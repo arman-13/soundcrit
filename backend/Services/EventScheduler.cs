@@ -22,7 +22,7 @@ public class EventScheduler : BackgroundService
         while (!stoppingToken.IsCancellationRequested)
         {
             await Tick();
-            await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+            await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
         }
     }
 
@@ -44,21 +44,21 @@ public class EventScheduler : BackgroundService
         var toStart = await db.Events
             .Where(e => e.Status == "Upcoming" && e.ScheduledAt <= now)
             .ToListAsync();
+        var startedEventIds = new List<int>();
         foreach (var ev in toStart)
         {
             ev.Status = "Live";
             ev.CurrentTrackIndex = 0;
             ev.CurrentTrackStartedAt = now;
             ev.CountdownStartedAt = null;
-
-            var firstTrack = await db.EventTracks
-                .Include(t => t.Track)
-                .Where(t => t.EventId == ev.Id && t.Status == "Approved")
-                .OrderBy(t => t.Order)
-                .FirstOrDefaultAsync();
-
-            if (firstTrack != null)
-                await _hub.Clients.Group($"event-{ev.Id}").SendAsync("TrackChanged", 0);
+            startedEventIds.Add(ev.Id);
+        }
+        // Save BEFORE sending signals so router.refresh() sees the updated status
+        if (startedEventIds.Count > 0)
+        {
+            await db.SaveChangesAsync();
+            foreach (var id in startedEventIds)
+                await _hub.Clients.Group($"event-{id}").SendAsync("TrackChanged", 0);
         }
 
         // Advance live events
@@ -69,6 +69,9 @@ public class EventScheduler : BackgroundService
 
         foreach (var ev in live)
         {
+            // Skip events that just started this tick — they'll be processed next tick
+            if (startedEventIds.Contains(ev.Id)) continue;
+
             var tracks = ev.EventTracks.Where(t => t.Status == "Approved").OrderBy(t => t.Order).ToList();
             if (tracks.Count == 0) continue;
 
@@ -91,8 +94,9 @@ public class EventScheduler : BackgroundService
                 var countdownElapsed = (now - ev.CountdownStartedAt.Value).TotalSeconds;
                 if (countdownElapsed >= 40)
                 {
+                    var trackStartedAt = DateTime.UtcNow;
                     ev.CurrentTrackIndex++;
-                    ev.CurrentTrackStartedAt = now;
+                    ev.CurrentTrackStartedAt = trackStartedAt;
                     ev.CountdownStartedAt = null;
 
                     if (ev.CurrentTrackIndex >= tracks.Count)
@@ -104,8 +108,7 @@ public class EventScheduler : BackgroundService
                     else
                     {
                         var next = tracks[ev.CurrentTrackIndex];
-                        await _hub.Clients.Group($"event-{ev.Id}").SendAsync("TrackChanged",
-                            ev.CurrentTrackIndex, new { next.TrackId, next.Track.Title, next.Track.Artist, next.Track.CoverImageUrl }, now);
+                        await _hub.Clients.Group($"event-{ev.Id}").SendAsync("TrackChanged", ev.CurrentTrackIndex);
                     }
                 }
             }

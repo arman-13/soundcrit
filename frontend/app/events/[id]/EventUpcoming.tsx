@@ -2,10 +2,12 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack } from "@/lib/api";
+import { useEventHub } from "@/hooks/useEventHub";
 import { LiveEventDetail, Track, EventTrack } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
   const [parts, setParts] = useState({ d: 0, h: 0, m: 0, s: 0 });
@@ -40,6 +42,12 @@ function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
 
 export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
+  const router = useRouter();
+  const { currentTrackIndex } = useEventHub(event.id, token);
+
+  useEffect(() => {
+    if (currentTrackIndex !== null) router.refresh();
+  }, [currentTrackIndex, router]);
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -246,7 +254,7 @@ function RequestRow({ request, eventId, token, onUpdate }: {
   return (
     <div className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/8">
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white/70">{request.userId}</p>
+        <p className="text-sm text-white/70">{request.displayName ?? request.userId}</p>
         {request.message && <p className="text-xs text-white/40 mt-0.5">{request.message}</p>}
       </div>
       {request.status === "Pending" ? (
