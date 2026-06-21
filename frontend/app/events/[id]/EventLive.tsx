@@ -32,7 +32,7 @@ function toTrack(et: EventTrack): Track {
 
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { playTrack, seekTo, setIsLive } = useAudioPlayer();
+  const { currentTrack: playerTrack, playTrack, seekTo, setIsLive } = useAudioPlayer();
 
   useEffect(() => {
     setIsLive(true);
@@ -60,8 +60,10 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       const sorted = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
       const track = sorted[sync.currentTrackIndex];
       if (track) {
-        playTrack(toTrack(track), sorted.map(toTrack));
-        setTimeout(() => seekTo(sync.elapsedSeconds), 100);
+        if (playerTrack?.id !== track.trackId) {
+          playTrack(toTrack(track), sorted.map(toTrack));
+          setTimeout(() => seekTo(sync.elapsedSeconds), 100);
+        }
         getEventComments(event.id, track.id).then(setComments).catch(() => {});
       }
     }).catch(() => {});
