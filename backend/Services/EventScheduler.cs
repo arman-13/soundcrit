@@ -1,4 +1,5 @@
 using Backend.Data;
+using Backend.DTOs;
 using Backend.Hubs;
 using Backend.Models;
 using Microsoft.AspNetCore.SignalR;
@@ -42,11 +43,19 @@ public class EventScheduler : BackgroundService
 
         // Start upcoming events
         var toStart = await db.Events
+            .Include(e => e.EventTracks).ThenInclude(et => et.Track)
             .Where(e => e.Status == "Upcoming" && e.ScheduledAt <= now)
             .ToListAsync();
         var startedEventIds = new List<int>();
         foreach (var ev in toStart)
         {
+            var hasApprovedTracks = ev.EventTracks.Any(t => t.Status == "Approved");
+            if (!hasApprovedTracks)
+            {
+                ev.Status = "Ended";
+                startedEventIds.Add(ev.Id);
+                continue;
+            }
             ev.Status = "Live";
             ev.CurrentTrackIndex = 0;
             ev.CurrentTrackStartedAt = now;
@@ -57,8 +66,8 @@ public class EventScheduler : BackgroundService
         if (startedEventIds.Count > 0)
         {
             await db.SaveChangesAsync();
-            foreach (var id in startedEventIds)
-                await _hub.Clients.Group($"event-{id}").SendAsync("TrackChanged", 0);
+            foreach (var ev in toStart)
+                await _hub.Clients.Group($"event-{ev.Id}").SendAsync("EventStarted");
         }
 
         // Advance live events
@@ -73,7 +82,13 @@ public class EventScheduler : BackgroundService
             if (startedEventIds.Contains(ev.Id)) continue;
 
             var tracks = ev.EventTracks.Where(t => t.Status == "Approved").OrderBy(t => t.Order).ToList();
-            if (tracks.Count == 0) continue;
+            if (tracks.Count == 0)
+            {
+                ev.Status = "Ended";
+                await _hub.Clients.Group($"event-{ev.Id}").SendAsync("EventEnded");
+                await ProcessUploadToProfile(db, ev.Id);
+                continue;
+            }
 
             if (ev.CurrentTrackIndex >= tracks.Count)
             {
@@ -108,7 +123,11 @@ public class EventScheduler : BackgroundService
                     else
                     {
                         var next = tracks[ev.CurrentTrackIndex];
-                        await _hub.Clients.Group($"event-{ev.Id}").SendAsync("TrackChanged", ev.CurrentTrackIndex);
+                        var dto = new HubTrackDto(ev.CurrentTrackIndex, next.Id, next.Track.Id,
+                            next.Track.Title, next.Track.Artist, next.Track.AudioUrl ?? "",
+                            next.Track.CoverImageUrl, next.Track.Duration, next.Track.Genre,
+                            ev.CurrentTrackStartedAt!.Value);
+                        await _hub.Clients.Group($"event-{ev.Id}").SendAsync("TrackChanged", dto);
                     }
                 }
             }

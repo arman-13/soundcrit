@@ -6,14 +6,27 @@ import { EventComment } from "@/types";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
+export interface HubTrack {
+  index: number;
+  eventTrackId: number;
+  trackId: number;
+  title: string;
+  artist: string;
+  audioUrl: string;
+  coverImageUrl: string;
+  duration: string;
+  genre: string | null;
+  startedAt: string;
+}
+
 export function useEventHub(
   eventId: number,
   token?: string | null,
   onNewComment?: (comment: EventComment) => void,
   onCountdownStarted?: (seconds: number) => void,
+  onTrackChanged?: (track: HubTrack) => void,
+  onEventStarted?: () => void,
 ) {
-  const [currentTrackIndex, setCurrentTrackIndex] = useState<number | null>(null);
-  const [countdown, setCountdown] = useState<number | null>(null);
   const [eventStatus, setEventStatus] = useState<string | null>(null);
   const [approvedUserId, setApprovedUserId] = useState<string | null>(null);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
@@ -21,6 +34,10 @@ export function useEventHub(
   onNewCommentRef.current = onNewComment;
   const onCountdownStartedRef = useRef(onCountdownStarted);
   onCountdownStartedRef.current = onCountdownStarted;
+  const onTrackChangedRef = useRef(onTrackChanged);
+  onTrackChangedRef.current = onTrackChanged;
+  const onEventStartedRef = useRef(onEventStarted);
+  onEventStartedRef.current = onEventStarted;
 
   useEffect(() => {
     const builder = new signalR.HubConnectionBuilder()
@@ -30,20 +47,16 @@ export function useEventHub(
       .withAutomaticReconnect()
       .build();
 
-    builder.on("TrackChanged", (index: number) => {
-      setCurrentTrackIndex(index);
-      setCountdown(null);
+    builder.on("TrackChanged", (track: HubTrack) => {
+      onTrackChangedRef.current?.(track);
     });
 
     builder.on("CountdownStarted", (seconds: number) => {
       onCountdownStartedRef.current?.(seconds);
-      setCountdown(seconds);
-      const interval = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev === null || prev <= 1) { clearInterval(interval); return null; }
-          return prev - 1;
-        });
-      }, 1000);
+    });
+
+    builder.on("EventStarted", () => {
+      onEventStartedRef.current?.();
     });
 
     builder.on("EventEnded", () => {
@@ -70,5 +83,5 @@ export function useEventHub(
     };
   }, [eventId, token]);
 
-  return { currentTrackIndex, countdown, eventStatus, approvedUserId };
+  return { eventStatus, approvedUserId };
 }

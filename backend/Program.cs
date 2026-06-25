@@ -60,9 +60,13 @@ builder.Services.AddCors(options =>
                 if (origin.StartsWith("http://localhost") ||
                     origin.StartsWith("https://localhost"))
                     return true;
-                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
-                    uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase))
-                    return true;
+                if (Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    if (uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase))
+                        return true;
+                    if (uri.Host == "soundcrit.com" || uri.Host == "www.soundcrit.com")
+                        return true;
+                }
                 return false;
             })
             .AllowAnyHeader()

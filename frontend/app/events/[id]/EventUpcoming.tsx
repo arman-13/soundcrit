@@ -43,11 +43,7 @@ function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
 export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
   const router = useRouter();
-  const { currentTrackIndex } = useEventHub(event.id, token);
-
-  useEffect(() => {
-    if (currentTrackIndex !== null) router.refresh();
-  }, [currentTrackIndex, router]);
+  useEventHub(event.id, token, undefined, undefined, undefined, () => router.refresh());
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);

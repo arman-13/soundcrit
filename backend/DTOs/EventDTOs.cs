@@ -33,6 +33,12 @@ public record EventSyncDto(
     DateTime ServerTime
 );
 
+public record HubTrackDto(
+    int Index, int EventTrackId, int TrackId, string Title, string Artist,
+    string AudioUrl, string CoverImageUrl, string Duration, string? Genre,
+    DateTime StartedAt
+);
+
 public record CreateEventRequest(
     string Title, string? Description, string? CoverImageUrl, DateTime ScheduledAt
 );

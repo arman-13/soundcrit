@@ -2,11 +2,11 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { getEventSync, getEventComments, postEventComment } from "@/lib/api";
-import { useEventHub } from "@/hooks/useEventHub";
+import { useEventHub, HubTrack } from "@/hooks/useEventHub";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 function fmtTime(s: number) {
@@ -31,6 +31,23 @@ function toTrack(et: EventTrack): Track {
   };
 }
 
+function hubToTrack(h: HubTrack): Track {
+  return {
+    id: h.trackId,
+    title: h.title,
+    artist: h.artist,
+    audioUrl: h.audioUrl,
+    coverImageUrl: h.coverImageUrl,
+    duration: h.duration,
+    genre: h.genre ?? "",
+    albumTitle: "",
+    publishedAt: "",
+    isPublished: true,
+    playCount: 0,
+    isFeatured: false,
+  };
+}
+
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
   const { currentTrack: playerTrack, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId } = useAudioPlayer();
@@ -43,11 +60,22 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
+
   const [countdown, setCountdown] = useState<number | null>(null);
   const [trackIndex, setTrackIndex] = useState(event.playbackState.currentTrackIndex);
   const [elapsed, setElapsed] = useState(0);
+  const [comments, setComments] = useState<EventComment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const startCountdown = (seconds: number) => {
+  // Current event track (for comments eventTrackId)
+  const [currentEventTrackId, setCurrentEventTrackId] = useState<number | null>(
+    approvedTracks[event.playbackState.currentTrackIndex]?.id ?? null
+  );
+
+  const startCountdown = useCallback((seconds: number) => {
     setIsCountdown(true);
     setCountdown(seconds);
     const interval = setInterval(() => {
@@ -56,9 +84,21 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         return prev - 1;
       });
     }, 1000);
-  };
+  }, [setIsCountdown]);
 
-  const { currentTrackIndex: hubTrackIndex, eventStatus } = useEventHub(
+  const handleTrackChanged = useCallback((hubTrack: HubTrack) => {
+    setCountdown(null);
+    setIsCountdown(false);
+    setTrackIndex(hubTrack.index);
+    setCurrentEventTrackId(hubTrack.eventTrackId);
+    playTrack(hubToTrack(hubTrack), approvedTracks.map(toTrack));
+    setTimeout(() => seekTo(0), 100);
+    setComments([]);
+    getEventComments(event.id, hubTrack.eventTrackId).then(setComments).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approvedTracks, event.id]);
+
+  const { eventStatus } = useEventHub(
     event.id, token,
     (comment) => setComments((prev) => {
       const idx = prev.findIndex((c) => c.id < 0 && c.content === comment.content && c.displayName === comment.displayName);
@@ -70,6 +110,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       return [comment, ...prev];
     }),
     startCountdown,
+    handleTrackChanged,
   );
 
   useEffect(() => {
@@ -81,31 +122,22 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     }
   }, [eventStatus, setIsLive, setIsCountdown, setLiveEventId, router]);
 
-  const [comments, setComments] = useState<EventComment[]>([]);
-  const [commentText, setCommentText] = useState("");
-  const [isAnonymous, setIsAnonymous] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
-  const currentTrack = approvedTracks[trackIndex] ?? null;
-
   // Sync on mount — restore playback position and countdown state
   useEffect(() => {
     getEventSync(event.id).then((sync) => {
       setTrackIndex(sync.currentTrackIndex);
 
-      // Mid-countdown: restore countdown timer
       if (sync.countdownSeconds > 0) {
         startCountdown(Math.ceil(sync.countdownSeconds));
         return;
       }
 
       setElapsed(sync.elapsedSeconds);
-      const sorted = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
-      const track = sorted[sync.currentTrackIndex];
+      const track = approvedTracks[sync.currentTrackIndex];
       if (track) {
+        setCurrentEventTrackId(track.id);
         if (playerTrack?.id !== track.trackId) {
-          playTrack(toTrack(track), sorted.map(toTrack));
+          playTrack(toTrack(track), approvedTracks.map(toTrack));
           setTimeout(() => seekTo(sync.elapsedSeconds), 100);
         }
         getEventComments(event.id, track.id).then(setComments).catch(() => {});
@@ -114,24 +146,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
-  // Track changes from hub — clear countdown and switch to new track
-  useEffect(() => {
-    if (hubTrackIndex === null) return;
-    setCountdown(null);
-    setIsCountdown(false);
-    setTrackIndex(hubTrackIndex);
-    const sorted = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
-    const track = sorted[hubTrackIndex];
-    if (track) {
-      playTrack(toTrack(track), sorted.map(toTrack));
-      setTimeout(() => seekTo(0), 100);
-      setComments([]);
-      getEventComments(event.id, track.id).then(setComments).catch(() => {});
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hubTrackIndex]);
-
-  // Live elapsed timer
+  // Live elapsed timer — resets when track changes
   useEffect(() => {
     setElapsed(0);
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
@@ -139,16 +154,15 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   }, [trackIndex]);
 
   const handleComment = async () => {
-    if (!token || !commentText.trim() || !currentTrack) return;
+    if (!token || !commentText.trim() || !currentEventTrackId) return;
     setSubmitting(true);
     const timestamp = Math.max(0, Math.floor(elapsed) - 2);
     const text = commentText.trim();
     setCommentText("");
-    // Optimistic add
     const optimisticId = -Date.now();
     setComments((prev) => [{
       id: optimisticId,
-      eventTrackId: currentTrack.id,
+      eventTrackId: currentEventTrackId,
       userId: user?.id ?? "",
       content: text,
       trackTimestamp: timestamp,
@@ -159,18 +173,18 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     try {
       await postEventComment(event.id, {
         content: text,
-        eventTrackId: currentTrack.id,
+        eventTrackId: currentEventTrackId,
         trackTimestamp: timestamp,
         isAnonymous,
       }, token);
     } catch {
-      // Roll back optimistic comment on failure
       setComments((prev) => prev.filter((c) => c.id !== optimisticId));
     } finally {
       setSubmitting(false);
     }
   };
 
+  const currentTrack = approvedTracks[trackIndex] ?? null;
   const isCountdown = countdown !== null;
 
   return (
