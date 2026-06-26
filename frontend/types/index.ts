@@ -134,6 +134,7 @@ export interface EventTrack {
   status: string;
   userId: string;
   uploadToProfile: boolean;
+  description?: string;
 }
 
 export interface PlaybackState {

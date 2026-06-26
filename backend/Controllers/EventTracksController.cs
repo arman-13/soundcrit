@@ -57,7 +57,7 @@ public class EventTracksController : ControllerBase
         var tracks = await query.OrderBy(t => t.Order)
             .Select(t => new EventTrackDto(t.Id, t.TrackId, t.Track.Title, t.Track.Artist,
                 t.Track.Duration, t.Track.AudioUrl ?? "", t.Track.CoverImageUrl, t.Track.Genre, t.Track.Mood,
-                t.Order, t.Status, t.UserId, t.UploadToProfile))
+                t.Order, t.Status, t.UserId, t.UploadToProfile, t.Track.Description))
             .ToListAsync();
         return Ok(tracks);
     }

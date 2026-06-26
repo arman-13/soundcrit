@@ -189,10 +189,14 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16 pb-28">
-      <div className="flex items-center gap-2 mb-10">
+      <div className="flex items-center gap-2 mb-2">
         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
         <p className="text-xs tracking-widest uppercase text-white/30">Live · {event.title}</p>
       </div>
+      {event.description && (
+        <p className="text-sm text-white/35 leading-relaxed mb-10 max-w-lg">{event.description}</p>
+      )}
+      {!event.description && <div className="mb-10" />}
 
       {currentTrack ? (
         <div className="flex flex-col md:flex-row gap-8 mb-12">
@@ -206,7 +210,10 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
                 ? <span className="flex items-baseline gap-3">_ <span className="text-xl text-white/40 tabular-nums">{String(Math.ceil(countdown!)).padStart(2, "0")}s</span></span>
                 : currentTrack.title}
             </h1>
-            <p className="text-base text-white/45 mb-4">{isCountdown ? "—" : currentTrack.artist}</p>
+            <p className="text-base text-white/45 mb-2">{isCountdown ? "—" : currentTrack.artist}</p>
+            {!isCountdown && currentTrack.description && (
+              <p className="text-sm text-white/35 leading-relaxed mb-3 max-w-sm">{currentTrack.description}</p>
+            )}
             {!isCountdown && <p className="text-xs text-white/25 tabular-nums">{fmtTime(elapsed)} / {currentTrack.duration}</p>}
           </div>
         </div>
