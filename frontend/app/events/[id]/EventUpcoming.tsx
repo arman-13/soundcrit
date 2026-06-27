@@ -68,13 +68,15 @@ export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
       getEventTracks(event.id, token).then(setSubmissions).catch(() => {});
       getAllTracksAdmin(token).then((res) => setMyTracks(res.data)).catch(() => {});
     } else {
-      // Check own request status first, then conditionally load tracks
       getMyEventRequest(event.id, token)
         .then(({ status }) => {
           if (status) {
             setRequestStatus(status);
             if (status === "Approved") {
               getAllTracksAdmin(token).then((res) => setMyTracks(res.data)).catch(() => {});
+              getEventTracks(event.id, token).then((tracks) => {
+                if (tracks.length > 0) setTrackSubmitted(true);
+              }).catch(() => {});
             }
           }
         })
@@ -168,7 +170,11 @@ export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
           {submitOpen && (
             <div className="px-5 pb-5 border-t border-white/8">
               {trackSubmitted ? (
-                <p className="text-sm text-green-400/70 pt-4">Track submitted — waiting for host approval.</p>
+                <div className="py-5 text-center space-y-1">
+                  <p className="text-2xl">🎧</p>
+                  <p className="text-sm text-white/70">You're in the mix.</p>
+                  <p className="text-xs text-white/30">Your track is queued — one submission per session.</p>
+                </div>
               ) : submitMode === null ? (
                 <div className="py-4 space-y-3">
                   <button

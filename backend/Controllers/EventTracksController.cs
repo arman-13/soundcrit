@@ -27,6 +27,9 @@ public class EventTracksController : ControllerBase
         var isHost = ev?.HostId == userId;
         if (!isApproved && !isHost) return Forbid();
 
+        var alreadySubmitted = await _db.EventTracks.AnyAsync(t => t.EventId == eventId && t.UserId == userId);
+        if (alreadySubmitted) return Conflict("You've already submitted a track to this session.");
+
         var exists = await _db.EventTracks.AnyAsync(t => t.EventId == eventId && t.TrackId == body.TrackId);
         if (exists) return BadRequest("Track already submitted.");
 
