@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, useCallback, useRef } from "react";
 import {
   getAllTracksAdmin, deleteTrack, updateTrack,
@@ -33,7 +33,9 @@ type View = "tracks" | "albums" | "upload" | "edit-track" | "create-album" | "ed
 export default function MyMusicPage() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
-  const [view, setView] = useState<View>("tracks");
+  const searchParams = useSearchParams();
+  const returnTo = searchParams.get("returnTo");
+  const [view, setView] = useState<View>(searchParams.get("upload") === "1" ? "upload" : "tracks");
   const [tracks, setTracks] = useState<Track[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
@@ -132,11 +134,15 @@ export default function MyMusicPage() {
             onSubmit={async (data) => {
               if (!token) return;
               setBusy(true);
-              try { await createTrack(data, token); setView("tracks"); loadTracks(); }
+              try {
+                const { id } = await createTrack(data, token) as { id: number };
+                if (returnTo) { router.push(`${returnTo}?newTrackId=${id}`); return; }
+                setView("tracks"); loadTracks();
+              }
               finally { setBusy(false); }
             }}
             busy={busy}
-            onCancel={() => setView("tracks")}
+            onCancel={() => { if (returnTo) { router.push(returnTo); return; } setView("tracks"); }}
             userDisplayName={user.displayName}
           />
         )}

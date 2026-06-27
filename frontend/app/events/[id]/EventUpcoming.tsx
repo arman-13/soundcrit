@@ -7,7 +7,7 @@ import { LiveEventDetail, Track, EventTrack } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
   const [parts, setParts] = useState({ d: 0, h: 0, m: 0, s: 0 });
@@ -43,6 +43,8 @@ function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
 export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const newTrackId = searchParams.get("newTrackId");
   useEventHub(event.id, token, undefined, undefined, undefined, () => router.refresh());
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -50,10 +52,12 @@ export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
   const [requests, setRequests] = useState<import("@/types").EventRequest[]>([]);
   const [submissions, setSubmissions] = useState<EventTrack[]>([]);
   const [myTracks, setMyTracks] = useState<Track[]>([]);
-  const [selectedTrackId, setSelectedTrackId] = useState<number | "">("");
-  const [uploadToProfile, setUploadToProfile] = useState(false);
+  const [selectedTrackId, setSelectedTrackId] = useState<number | "">(newTrackId ? Number(newTrackId) : "");
+  const [uploadToProfile, setUploadToProfile] = useState(!!newTrackId);
   const [trackSubmitting, setTrackSubmitting] = useState(false);
   const [trackSubmitted, setTrackSubmitted] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(!!newTrackId);
+  const [submitMode, setSubmitMode] = useState<"existing" | null>(newTrackId ? "existing" : null);
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
 
@@ -152,33 +156,66 @@ export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
 
       {/* Track submission — for approved members and host */}
       {(isApproved || isHost) && (
-        <div className="mt-12 text-left max-w-sm mx-auto">
-          <h2 className="text-xs tracking-widest uppercase text-white/25 mb-4">Submit a Track</h2>
-          {trackSubmitted ? (
-            <p className="text-sm text-green-400/70">Track submitted — waiting for host approval.</p>
-          ) : (
-            <div className="space-y-3">
-              <select
-                value={selectedTrackId}
-                onChange={(e) => setSelectedTrackId(e.target.value ? Number(e.target.value) : "")}
-                className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors"
-              >
-                <option value="">Select one of your tracks…</option>
-                {myTracks.map((t) => (
-                  <option key={t.id} value={t.id}>{t.title}</option>
-                ))}
-              </select>
-              <label className="flex items-center gap-2 text-sm text-white/45 cursor-pointer">
-                <input type="checkbox" checked={uploadToProfile} onChange={(e) => setUploadToProfile(e.target.checked)} className="accent-white" />
-                Publish to my profile after the session
-              </label>
-              <button
-                onClick={handleTrackSubmit}
-                disabled={trackSubmitting || !selectedTrackId}
-                className="w-full bg-white text-black text-sm font-medium py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-40"
-              >
-                {trackSubmitting ? "Submitting…" : "Submit Track"}
-              </button>
+        <div className="mt-16 max-w-sm mx-auto text-left border border-white/10 rounded-xl overflow-hidden">
+          <button
+            onClick={() => { setSubmitOpen((o) => !o); setSubmitMode(null); }}
+            className="w-full flex items-center justify-between px-5 py-4 text-sm text-white/60 hover:text-white/80 transition-colors"
+          >
+            <span className="tracking-widest uppercase text-xs text-white/40">Submit a Track</span>
+            <span className={`transition-transform duration-200 ${submitOpen ? "rotate-180" : ""}`}>▾</span>
+          </button>
+
+          {submitOpen && (
+            <div className="px-5 pb-5 border-t border-white/8">
+              {trackSubmitted ? (
+                <p className="text-sm text-green-400/70 pt-4">Track submitted — waiting for host approval.</p>
+              ) : submitMode === null ? (
+                <div className="py-4 space-y-3">
+                  <button
+                    onClick={() => setSubmitMode("existing")}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/8 hover:border-white/20 transition-colors text-left"
+                  >
+                    <div>
+                      <p className="text-sm text-white/70">Use an existing track</p>
+                      <p className="text-xs text-white/30 mt-0.5">Pick from your uploaded songs</p>
+                    </div>
+                  </button>
+                  <Link
+                    href={`/my-music?returnTo=/events/${event.id}&upload=1`}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/8 hover:border-white/20 transition-colors text-left"
+                  >
+                    <div>
+                      <p className="text-sm text-white/70">Upload a new track</p>
+                      <p className="text-xs text-white/30 mt-0.5">You'll be brought back here after uploading</p>
+                    </div>
+                  </Link>
+                </div>
+              ) : (
+                <div className="py-4 space-y-4">
+                  <button onClick={() => setSubmitMode(null)} className="text-xs text-white/30 hover:text-white/50 transition-colors">← Back</button>
+                  <select
+                    value={selectedTrackId}
+                    onChange={(e) => setSelectedTrackId(e.target.value ? Number(e.target.value) : "")}
+                    className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors"
+                  >
+                    <option value="">Select one of your tracks…</option>
+                    {myTracks.map((t) => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                  </select>
+                  <label className="flex items-center gap-2 text-sm text-white/45 cursor-pointer">
+                    <input type="checkbox" checked={uploadToProfile} onChange={(e) => setUploadToProfile(e.target.checked)} className="accent-white" />
+                    Publish to my profile after the session
+                  </label>
+                  <button
+                    onClick={handleTrackSubmit}
+                    disabled={trackSubmitting || !selectedTrackId}
+                    className="w-full bg-white text-black text-sm font-medium py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-40"
+                  >
+                    {trackSubmitting ? "Submitting…" : "Submit Track"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
