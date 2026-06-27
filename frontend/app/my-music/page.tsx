@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import {
   getAllTracksAdmin, deleteTrack, updateTrack,
   getMyAlbums, createAlbum, updateAlbum, deleteAlbum,
@@ -30,7 +30,7 @@ async function uploadFile(file: File, type: "image" | "audio", token: string): P
 
 type View = "tracks" | "albums" | "upload" | "edit-track" | "create-album" | "edit-album";
 
-export default function MyMusicPage() {
+function MyMusicPageInner() {
   const { user, token, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -321,6 +321,14 @@ function AlbumsView({ albums, tracks, token, onEdit, onDelete, onCreate, onRefre
         </div>
       )}
     </div>
+  );
+}
+
+export default function MyMusicPage() {
+  return (
+    <Suspense>
+      <MyMusicPageInner />
+    </Suspense>
   );
 }
 
