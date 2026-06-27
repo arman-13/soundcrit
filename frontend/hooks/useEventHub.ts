@@ -71,14 +71,21 @@ export function useEventHub(
       setApprovedUserId(userId);
     });
 
+    let stopped = false;
     builder.start()
-      .then(() => builder.invoke("JoinEvent", eventId))
-      .catch(console.error);
+      .then(() => {
+        if (stopped) { builder.stop(); return; }
+        builder.invoke("JoinEvent", eventId);
+      })
+      .catch(() => {});
 
     connectionRef.current = builder;
 
     return () => {
-      builder.invoke("LeaveEvent", eventId).catch(() => {});
+      stopped = true;
+      if (builder.state !== signalR.HubConnectionState.Connecting) {
+        builder.invoke("LeaveEvent", eventId).catch(() => {});
+      }
       builder.stop();
     };
   }, [eventId, token]);
