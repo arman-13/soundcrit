@@ -83,12 +83,26 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
           setIsCountdown(false);
+          // Poll for the next track in case TrackChanged signal was missed
+          setTimeout(() => {
+            getEventSync(event.id).then((sync) => {
+              const track = approvedTracks[sync.currentTrackIndex];
+              if (track) {
+                setTrackIndex(sync.currentTrackIndex);
+                setCurrentEventTrackId(track.id);
+                playTrack(toTrack(track), approvedTracks.map(toTrack));
+                setTimeout(() => seekTo(sync.elapsedSeconds), 100);
+                getEventComments(event.id, track.id).then(setComments).catch(() => {});
+              }
+            }).catch(() => {});
+          }, 1500);
           return null;
         }
         return prev - 1;
       });
     }, 1000);
-  }, [setIsCountdown]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setIsCountdown, event.id, approvedTracks]);
 
   const handleTrackChanged = useCallback((hubTrack: HubTrack) => {
     setCountdown(null);
