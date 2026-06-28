@@ -65,7 +65,10 @@ export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
     if (!token) return;
     if (isHost) {
       getEventRequests(event.id, token).then(setRequests).catch(() => {});
-      getEventTracks(event.id, token).then(setSubmissions).catch(() => {});
+      getEventTracks(event.id, token).then((tracks) => {
+        setSubmissions(tracks);
+        if (tracks.some((t) => t.userId === user?.id)) setTrackSubmitted(true);
+      }).catch(() => {});
       getAllTracksAdmin(token).then((res) => setMyTracks(res.data)).catch(() => {});
     } else {
       getMyEventRequest(event.id, token)

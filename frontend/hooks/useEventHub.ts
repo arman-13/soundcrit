@@ -41,12 +41,13 @@ export function useEventHub(
 
   useEffect(() => {
     const builder = new signalR.HubConnectionBuilder()
-      .withUrl(`${API_URL}/hubs/event`, token
-        ? { accessTokenFactory: () => token }
-        : {})
+      .withUrl(`${API_URL}/hubs/event`, {
+        ...(token ? { accessTokenFactory: () => token } : {}),
+        transport: signalR.HttpTransportType.LongPolling,
+      })
       .withAutomaticReconnect()
-      .withServerTimeout(60000)
-      .withKeepAliveInterval(15000)
+      .withServerTimeout(120000)
+      .withKeepAliveInterval(30000)
       .build();
 
     builder.on("TrackChanged", (track: HubTrack) => {
