@@ -179,20 +179,26 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     const audio = audioRef.current;
     if (!audio) return;
     const onEnded = () => {
+      const trackIdAtEnd = currentEventTrackId;
       setTimeout(() => {
-        getEventSync(event.id).then((sync) => {
-          if (sync.countdownSeconds > 0) {
-            startCountdown(Math.ceil(sync.countdownSeconds));
-          } else {
-            const track = approvedTracks[sync.currentTrackIndex];
-            if (track && track.id !== currentEventTrackId) {
-              setTrackIndex(sync.currentTrackIndex);
-              setCurrentEventTrackId(track.id);
-              playTrack(toTrack(track), approvedTracks.map(toTrack));
-              setTimeout(() => seekTo(sync.elapsedSeconds), 100);
+        // Only act if SignalR hasn't already advanced the track
+        setCurrentEventTrackId((latest) => {
+          if (latest !== trackIdAtEnd) return latest; // SignalR already handled it
+          getEventSync(event.id).then((sync) => {
+            if (sync.countdownSeconds > 0) {
+              startCountdown(Math.ceil(sync.countdownSeconds));
+            } else {
+              const track = approvedTracks[sync.currentTrackIndex];
+              if (track && track.id !== trackIdAtEnd) {
+                setTrackIndex(sync.currentTrackIndex);
+                setCurrentEventTrackId(track.id);
+                playTrack(toTrack(track), approvedTracks.map(toTrack));
+                setTimeout(() => seekTo(sync.elapsedSeconds), 100);
+              }
             }
-          }
-        }).catch(() => {});
+          }).catch(() => {});
+          return latest;
+        });
       }, 2000);
     };
     audio.addEventListener("ended", onEnded);
