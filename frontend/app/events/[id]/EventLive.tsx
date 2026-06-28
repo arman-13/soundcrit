@@ -50,7 +50,7 @@ function hubToTrack(h: HubTrack): Track {
 
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { currentTrack: playerTrack, isPlaying, setIsPlaying, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId, dismiss, audioRef } = useAudioPlayer();
+  const { currentTrack: playerTrack, isPlaying, setIsPlaying, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId, dismiss } = useAudioPlayer();
   const router = useRouter();
 
   useEffect(() => {
@@ -87,26 +87,12 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
           setIsCountdown(false);
-          // Poll for the next track in case TrackChanged signal was missed
-          setTimeout(() => {
-            getEventSync(event.id).then((sync) => {
-              const track = approvedTracks[sync.currentTrackIndex];
-              if (track) {
-                setTrackIndex(sync.currentTrackIndex);
-                setCurrentEventTrackId(track.id);
-                playTrack(toTrack(track), approvedTracks.map(toTrack));
-                setTimeout(() => seekTo(sync.elapsedSeconds), 100);
-                getEventComments(event.id, track.id).then(setComments).catch(() => {});
-              }
-            }).catch(() => {});
-          }, 1500);
           return null;
         }
         return prev - 1;
       });
     }, 1000);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setIsCountdown, event.id, approvedTracks]);
+  }, [setIsCountdown]);
 
   const handleTrackChanged = useCallback((hubTrack: HubTrack) => {
     setCountdown(null);
@@ -178,39 +164,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [syncState]);
 
-  // When audio ends in live mode, poll server to advance or end
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const onEnded = () => {
-      const trackIdAtEnd = currentEventTrackId;
-      setTimeout(() => {
-        // Only act if SignalR hasn't already advanced the track
-        setCurrentEventTrackId((latest) => {
-          if (latest !== trackIdAtEnd) return latest; // SignalR already handled it
-          getEventSync(event.id).then((sync) => {
-            if (sync.countdownSeconds > 0) {
-              startCountdown(Math.ceil(sync.countdownSeconds));
-            } else {
-              const track = approvedTracks[sync.currentTrackIndex];
-              if (track && track.id !== trackIdAtEnd) {
-                setTrackIndex(sync.currentTrackIndex);
-                setCurrentEventTrackId(track.id);
-                playTrack(toTrack(track), approvedTracks.map(toTrack));
-                setTimeout(() => seekTo(sync.elapsedSeconds), 100);
-              }
-            }
-          }).catch(() => {});
-          return latest;
-        });
-      }, 2000);
-    };
-    audio.addEventListener("ended", onEnded);
-    return () => audio.removeEventListener("ended", onEnded);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id, approvedTracks, currentEventTrackId]);
-
-  // Live elapsed timer — resets when track changes
+// Live elapsed timer — resets when track changes
   useEffect(() => {
     setElapsed(0);
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
