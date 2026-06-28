@@ -140,8 +140,8 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     }
   }, [eventStatus, setIsLive, setIsCountdown, setLiveEventId, router]);
 
-  // Sync on mount — restore playback position and countdown state
-  useEffect(() => {
+  // Sync on mount and on tab focus — restores playback position and countdown state
+  const syncState = useCallback(() => {
     getEventSync(event.id).then((sync) => {
       setTrackIndex(sync.currentTrackIndex);
 
@@ -150,6 +150,8 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         return;
       }
 
+      setIsCountdown(false);
+      setCountdown(null);
       setElapsed(sync.elapsedSeconds);
       const track = approvedTracks[sync.currentTrackIndex];
       if (track) {
@@ -162,7 +164,14 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id]);
+  }, [event.id, approvedTracks]);
+
+  useEffect(() => {
+    syncState();
+    const onVisible = () => { if (document.visibilityState === "visible") syncState(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [syncState]);
 
   // Live elapsed timer — resets when track changes
   useEffect(() => {
