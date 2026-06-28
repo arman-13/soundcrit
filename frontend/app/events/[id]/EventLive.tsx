@@ -252,17 +252,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       )}
       {!event.description && <div className="mb-10" />}
 
-      {playerTrack && !isPlaying && !isCountdown && (
-        <button
-          onClick={() => { setIsPlaying(true); }}
-          className="mb-8 w-full flex items-center justify-center gap-3 py-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white"
-        >
-          <span className="text-lg">▶</span>
-          <span className="text-sm tracking-wide">Tap to listen</span>
-        </button>
-      )}
-
-      {currentTrack ? (
+{currentTrack ? (
         <div className="flex flex-col md:flex-row gap-8 mb-12">
           <div className="relative w-full md:w-56 aspect-square rounded-xl overflow-hidden bg-white/5 shrink-0">
             {!isCountdown && <Image src={currentTrack.coverImageUrl} alt={currentTrack.title} fill className="object-cover" />}
