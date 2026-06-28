@@ -6,12 +6,13 @@ import { useEventHub } from "@/hooks/useEventHub";
 import { LiveEventDetail, Track, EventTrack } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import EventLive from "./EventLive";
 
-function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
+function BigCountdown({ scheduledAt, onExpire }: { scheduledAt: string; onExpire?: () => void }) {
   const [parts, setParts] = useState({ d: 0, h: 0, m: 0, s: 0 });
+  const firedRef = useRef(false);
 
   useEffect(() => {
     const tick = () => {
@@ -23,11 +24,15 @@ function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
         m: Math.floor((diff % 3600000) / 60000),
         s: Math.floor((diff % 60000) / 1000),
       });
+      if (diff === 0 && !firedRef.current) {
+        firedRef.current = true;
+        onExpire?.();
+      }
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [scheduledAt]);
+  }, [scheduledAt, onExpire]);
 
   return (
     <div className="flex gap-6 justify-center my-12">
@@ -48,9 +53,9 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
   const newTrackId = searchParams.get("newTrackId");
   const [liveEvent, setLiveEvent] = useState<LiveEventDetail | null>(null);
 
-  const handleEventStarted = () => {
+  const handleEventStarted = useCallback(() => {
     getEvent(initialEvent.id).then((e) => setLiveEvent(e)).catch(() => router.refresh());
-  };
+  }, [initialEvent.id, router]);
 
   useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted);
 
@@ -145,7 +150,7 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
         <span>Hosted by {event.hostDisplayName}</span>
       </div>
 
-      <BigCountdown scheduledAt={event.scheduledAt} />
+      <BigCountdown scheduledAt={event.scheduledAt} onExpire={handleEventStarted} />
 
       <p className="text-xs text-white/25 mb-10">
         {event.trackCount} tracks{event.genres?.length > 0 ? ` · ${event.genres.slice(0, 3).join(" · ")}` : ""}
