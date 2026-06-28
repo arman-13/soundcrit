@@ -47,16 +47,25 @@ function BigCountdown({ scheduledAt, onExpire }: { scheduledAt: string; onExpire
 }
 
 export default function EventUpcoming({ event: initialEvent }: { event: LiveEventDetail }) {
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const newTrackId = searchParams.get("newTrackId");
   const [liveEvent, setLiveEvent] = useState<LiveEventDetail | null>(null);
 
   const handleEventStarted = useCallback(() => {
     getEvent(initialEvent.id).then((e) => setLiveEvent(e)).catch(() => router.refresh());
   }, [initialEvent.id, router]);
 
+  useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted);
+
+  if (liveEvent) return <EventLive event={liveEvent} />;
+  return <EventUpcomingInner event={initialEvent} onEventStarted={handleEventStarted} />;
+}
+
+function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail; onEventStarted: () => void }) {
+  const { user, token } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const newTrackId = searchParams.get("newTrackId");
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -70,13 +79,8 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
   const [submitOpen, setSubmitOpen] = useState(!!newTrackId);
   const [submitMode, setSubmitMode] = useState<"existing" | null>(newTrackId ? "existing" : null);
 
-  useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted);
-
-  const event = initialEvent;
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
-
-  if (liveEvent) return <EventLive event={liveEvent} />;
 
   useEffect(() => {
     if (!token) return;
@@ -151,7 +155,7 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
         <span>Hosted by {event.hostDisplayName}</span>
       </div>
 
-      <BigCountdown scheduledAt={event.scheduledAt} onExpire={handleEventStarted} />
+      <BigCountdown scheduledAt={event.scheduledAt} onExpire={onEventStarted} />
 
       <p className="text-xs text-white/25 mb-10">
         {event.trackCount} tracks{event.genres?.length > 0 ? ` · ${event.genres.slice(0, 3).join(" · ")}` : ""}
