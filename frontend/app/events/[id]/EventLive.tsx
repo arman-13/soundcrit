@@ -80,7 +80,11 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     setCountdown(seconds);
     const interval = setInterval(() => {
       setCountdown((prev) => {
-        if (prev === null || prev <= 1) { clearInterval(interval); return null; }
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          setIsCountdown(false);
+          return null;
+        }
         return prev - 1;
       });
     }, 1000);
@@ -217,7 +221,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
             <p className="text-xs tracking-widest uppercase text-white/25 mb-2">{isCountdown ? "—" : currentTrack.genre}</p>
             <h1 className="text-3xl font-light text-white/90 mb-1">
               {isCountdown
-                ? <span className="flex items-baseline gap-3">_ <span className="text-xl text-white/40 tabular-nums">{String(Math.ceil(countdown!)).padStart(2, "0")}s</span></span>
+                ? <span className="flex items-baseline gap-3">_ <span className="text-xl text-white/40 tabular-nums">{countdown != null ? String(Math.ceil(countdown)).padStart(2, "0") : "00"}s</span></span>
                 : currentTrack.title}
             </h1>
             <p className="text-base text-white/45 mb-2">{isCountdown ? "—" : currentTrack.artist}</p>
