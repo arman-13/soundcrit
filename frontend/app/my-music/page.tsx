@@ -15,7 +15,7 @@ import StoryBlockEditor from "./StoryBlockEditor";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
-async function uploadFile(file: File, type: "image" | "audio", token: string): Promise<string> {
+async function uploadFile(file: File, type: "image" | "audio", token: string): Promise<{ url: string; duration?: string }> {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(`${API_URL}/api/upload/${type}`, {
@@ -24,8 +24,7 @@ async function uploadFile(file: File, type: "image" | "audio", token: string): P
     body: form,
   });
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-  const { url } = await res.json();
-  return url;
+  return res.json();
 }
 
 type View = "tracks" | "albums" | "upload" | "edit-track" | "create-album" | "edit-album";
@@ -360,9 +359,9 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
     setUploadError(null);
     setUploading((u) => ({ ...u, [type]: true }));
     try {
-      const url = await uploadFile(file, type, token);
+      const { url, duration } = await uploadFile(file, type, token);
       if (type === "image") setForm((p) => ({ ...p, coverImageUrl: url }));
-      else setForm((p) => ({ ...p, audioUrl: url }));
+      else setForm((p) => ({ ...p, audioUrl: url, ...(duration ? { duration } : {}) }));
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -374,7 +373,6 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
     { key: "title", label: "Title" },
     { key: "artist", label: "Artist" },
     { key: "genre", label: "Genre" },
-    { key: "duration", label: "Duration", placeholder: "e.g. 3:42" },
     { key: "mood", label: "Mood tags", placeholder: "e.g. melancholic,late night" },
     { key: "description", label: "Short description" },
   ];
@@ -509,7 +507,7 @@ function AlbumForm({ initial, onSubmit, busy, onCancel }: {
     setUploadError(null);
     setUploadingCover(true);
     try {
-      const url = await uploadFile(file, "image", token);
+      const { url } = await uploadFile(file, "image", token);
       setForm((p) => ({ ...p, coverImageUrl: url }));
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");

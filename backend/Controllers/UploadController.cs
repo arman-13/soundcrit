@@ -50,7 +50,7 @@ public class UploadController : ControllerBase
             return BadRequest("No file provided.");
 
         using var stream = file.OpenReadStream();
-        var uploadParams = new RawUploadParams
+        var uploadParams = new VideoUploadParams
         {
             File = new FileDescription(file.FileName, stream),
             Folder = "music/audio",
@@ -61,6 +61,9 @@ public class UploadController : ControllerBase
         if (result.Error != null)
             return StatusCode(500, result.Error.Message);
 
-        return Ok(new { url = result.SecureUrl.ToString() });
+        var totalSeconds = (int)result.Duration;
+        var duration = $"{totalSeconds / 60}:{(totalSeconds % 60):D2}";
+
+        return Ok(new { url = result.SecureUrl.ToString(), duration });
     }
 }
