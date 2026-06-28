@@ -6,7 +6,7 @@ import { useEventHub, HubTrack } from "@/hooks/useEventHub";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
 import Image from "next/image";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 function fmtTime(s: number) {
@@ -60,7 +60,11 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
+  const approvedTracks = useMemo(
+    () => event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [event.id]
+  );
 
   const [countdown, setCountdown] = useState<number | null>(null);
   const [trackIndex, setTrackIndex] = useState(event.playbackState.currentTrackIndex);
