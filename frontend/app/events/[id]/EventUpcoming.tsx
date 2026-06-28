@@ -57,11 +57,6 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
     getEvent(initialEvent.id).then((e) => setLiveEvent(e)).catch(() => router.refresh());
   }, [initialEvent.id, router]);
 
-  useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted);
-
-  if (liveEvent) return <EventLive event={liveEvent} />;
-
-  const event = initialEvent;
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -74,8 +69,14 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
   const [trackSubmitted, setTrackSubmitted] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(!!newTrackId);
   const [submitMode, setSubmitMode] = useState<"existing" | null>(newTrackId ? "existing" : null);
+
+  useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted);
+
+  const event = initialEvent;
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
+
+  if (liveEvent) return <EventLive event={liveEvent} />;
 
   useEffect(() => {
     if (!token) return;
