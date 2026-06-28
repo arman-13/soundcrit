@@ -45,6 +45,8 @@ export function useEventHub(
         ? { accessTokenFactory: () => token }
         : {})
       .withAutomaticReconnect()
+      .withServerTimeout(60000)
+      .withKeepAliveInterval(15000)
       .build();
 
     builder.on("TrackChanged", (track: HubTrack) => {
@@ -56,6 +58,7 @@ export function useEventHub(
     });
 
     builder.on("EventStarted", () => {
+      console.log("[SignalR] EventStarted received");
       onEventStartedRef.current?.();
     });
 
@@ -75,9 +78,10 @@ export function useEventHub(
     builder.start()
       .then(() => {
         if (stopped) { builder.stop(); return; }
+        console.log("[SignalR] Connected, joining event", eventId);
         builder.invoke("JoinEvent", eventId);
       })
-      .catch(() => {});
+      .catch((err) => console.error("[SignalR] Connection failed:", err));
 
     connectionRef.current = builder;
 
