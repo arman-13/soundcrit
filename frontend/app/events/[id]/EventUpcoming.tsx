@@ -1,13 +1,14 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack } from "@/lib/api";
+import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack, getEvent } from "@/lib/api";
 import { useEventHub } from "@/hooks/useEventHub";
 import { LiveEventDetail, Track, EventTrack } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import EventLive from "./EventLive";
 
 function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
   const [parts, setParts] = useState({ d: 0, h: 0, m: 0, s: 0 });
@@ -40,12 +41,22 @@ function BigCountdown({ scheduledAt }: { scheduledAt: string }) {
   );
 }
 
-export default function EventUpcoming({ event }: { event: LiveEventDetail }) {
+export default function EventUpcoming({ event: initialEvent }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const newTrackId = searchParams.get("newTrackId");
-  useEventHub(event.id, token, undefined, undefined, undefined, () => router.refresh());
+  const [liveEvent, setLiveEvent] = useState<LiveEventDetail | null>(null);
+
+  const handleEventStarted = () => {
+    getEvent(initialEvent.id).then((e) => setLiveEvent(e)).catch(() => router.refresh());
+  };
+
+  useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted);
+
+  if (liveEvent) return <EventLive event={liveEvent} />;
+
+  const event = initialEvent;
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
