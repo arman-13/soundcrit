@@ -26,7 +26,7 @@ export default function AudioPlayer() {
     const audio = audioRef.current;
     if (!audio || !currentTrack) return;
     audio.src = currentTrack.audioUrl;
-    audio.play().then(() => setIsPlaying(true)).catch(() => {});
+    audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTrack?.id]);
 

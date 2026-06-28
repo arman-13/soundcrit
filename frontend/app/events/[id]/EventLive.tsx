@@ -50,7 +50,7 @@ function hubToTrack(h: HubTrack): Track {
 
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { currentTrack: playerTrack, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId } = useAudioPlayer();
+  const { currentTrack: playerTrack, isPlaying, setIsPlaying, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId } = useAudioPlayer();
   const router = useRouter();
 
   useEffect(() => {
@@ -197,6 +197,16 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         <p className="text-sm text-white/35 leading-relaxed mb-10 max-w-lg">{event.description}</p>
       )}
       {!event.description && <div className="mb-10" />}
+
+      {playerTrack && !isPlaying && !isCountdown && (
+        <button
+          onClick={() => { setIsPlaying(true); }}
+          className="mb-8 w-full flex items-center justify-center gap-3 py-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-white/70 hover:text-white"
+        >
+          <span className="text-lg">▶</span>
+          <span className="text-sm tracking-wide">Tap to listen</span>
+        </button>
+      )}
 
       {currentTrack ? (
         <div className="flex flex-col md:flex-row gap-8 mb-12">
