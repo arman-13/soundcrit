@@ -152,6 +152,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       const track = approvedTracks[sync.currentTrackIndex];
       if (track) {
         setCurrentEventTrackId(track.id);
+        setElapsed(sync.elapsedSeconds);
         if (playerTrack?.id !== track.trackId) {
           // Track changed — play and seek
           playTrack(toTrack(track), approvedTracks.map(toTrack));
