@@ -164,12 +164,23 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [syncState]);
 
-// Live elapsed timer — resets when track changes
+  // Live elapsed timer — resets when track changes
   useEffect(() => {
     setElapsed(0);
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
   }, [trackIndex]);
+
+  // Fallback: if elapsed exceeds track duration, SignalR missed the signal — re-sync
+  useEffect(() => {
+    const track = approvedTracks[trackIndex];
+    if (!track || isCountdown) return;
+    const [m, s] = track.duration.split(":").map(Number);
+    const durationSeconds = m * 60 + (s || 0);
+    if (durationSeconds > 0 && elapsed > durationSeconds + 3) {
+      syncState();
+    }
+  }, [elapsed, trackIndex, approvedTracks, isCountdown, syncState]);
 
   const handleComment = async () => {
     if (!token || !commentText.trim() || !currentEventTrackId) return;
