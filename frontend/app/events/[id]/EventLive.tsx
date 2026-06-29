@@ -262,7 +262,6 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
             {isCountdown && (
               <p className="text-xs text-white/25 tracking-wide">Up next in {countdown != null ? String(Math.ceil(countdown)).padStart(2, "0") : "00"}s</p>
             )}
-            {!isCountdown && <p className="text-xs text-white/25 tabular-nums">{fmtTime(elapsed)} / {currentTrack.duration}</p>}
           </div>
         </div>
       ) : (
