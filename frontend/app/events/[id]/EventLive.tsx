@@ -140,6 +140,12 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // Sync on mount and on tab focus — restores playback position and countdown state
   const syncState = useCallback(() => {
     getEventSync(event.id).then((sync) => {
+      // Check if event has ended (missed EventEnded signal while tab was hidden)
+      if (sync.status === "Ended" || sync.currentTrackIndex < 0) {
+        setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
+        router.refresh();
+        return;
+      }
       setTrackIndex(sync.currentTrackIndex);
 
       if (sync.countdownSeconds > 0) {
