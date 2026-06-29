@@ -171,16 +171,6 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     return () => clearInterval(id);
   }, [trackIndex]);
 
-  // Fallback: if elapsed exceeds track duration, SignalR missed the signal — re-sync
-  useEffect(() => {
-    const track = approvedTracks[trackIndex];
-    if (!track || isCountdown) return;
-    const [m, s] = track.duration.split(":").map(Number);
-    const durationSeconds = m * 60 + (s || 0);
-    if (durationSeconds > 0 && elapsed > durationSeconds + 3) {
-      syncState();
-    }
-  }, [elapsed, trackIndex, approvedTracks, isCountdown, syncState]);
 
   const handleComment = async () => {
     if (!token || !commentText.trim() || !currentEventTrackId) return;
@@ -215,6 +205,18 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
 
   const currentTrack = approvedTracks[trackIndex] ?? null;
   const isCountdown = countdown !== null;
+
+  // Fallback: if elapsed exceeds track duration, SignalR missed the signal — re-sync
+  useEffect(() => {
+    const track = approvedTracks[trackIndex];
+    if (!track || isCountdown) return;
+    const [m, s] = track.duration.split(":").map(Number);
+    const durationSeconds = m * 60 + (s || 0);
+    if (durationSeconds > 0 && elapsed > durationSeconds + 3) {
+      syncState();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elapsed, trackIndex, isCountdown]);
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16 pb-28">
