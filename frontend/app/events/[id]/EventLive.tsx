@@ -166,22 +166,24 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
-  // Poll every 10s and on tab re-focus: catch missed EventEnded signals
+  // Poll every 5s and on tab re-focus: catch missed CountdownStarted / EventEnded signals
   useEffect(() => {
-    const checkEnded = () => {
+    const checkSync = () => {
       getEventSync(event.id).then((sync) => {
         if (sync.status === "Ended") {
           setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
           router.refresh();
+        } else if (sync.countdownSeconds > 0 && !isCountdown) {
+          startCountdown(Math.ceil(sync.countdownSeconds));
         }
       }).catch(() => {});
     };
-    const interval = setInterval(checkEnded, 10000);
-    const onVisible = () => { if (document.visibilityState === "visible") checkEnded(); };
+    const interval = setInterval(checkSync, 5000);
+    const onVisible = () => { if (document.visibilityState === "visible") checkSync(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id]);
+  }, [event.id, isCountdown]);
 
   // Live elapsed timer — resets when track changes
   useEffect(() => {
