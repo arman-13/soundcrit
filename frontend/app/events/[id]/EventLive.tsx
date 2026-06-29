@@ -208,7 +208,13 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       }).catch(() => {});
     };
     const interval = setInterval(checkSync, 5000);
-    const onVisible = () => { if (document.visibilityState === "visible") checkSync(); };
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      // Resync elapsed from audio element — JS timer drifts in background tabs
+      const audioEl = (document.querySelector("audio") as HTMLAudioElement | null);
+      if (audioEl && !audioEl.paused) setElapsed(audioEl.currentTime);
+      checkSync();
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
