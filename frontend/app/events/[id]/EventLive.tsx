@@ -5,6 +5,7 @@ import { getEventSync, getEventComments, postEventComment } from "@/lib/api";
 import { useEventHub, HubTrack } from "@/hooks/useEventHub";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
+import EventEndingScreen from "./EventEndingScreen";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -73,6 +74,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isEnding, setIsEnding] = useState(false);
 
   // Current event track (for comments eventTrackId)
   const [currentEventTrackId, setCurrentEventTrackId] = useState<number | null>(
@@ -154,23 +156,22 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     handleTrackChanged,
   );
 
+  const triggerEnding = useCallback(() => {
+    setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
+    setIsEnding(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
-    if (eventStatus === "Ended") {
-      setIsLive(false);
-      setIsCountdown(false);
-      setLiveEventId(null);
-      dismiss();
-      router.refresh();
-    }
-  }, [eventStatus, setIsLive, setIsCountdown, setLiveEventId, router]);
+    if (eventStatus === "Ended") triggerEnding();
+  }, [eventStatus, triggerEnding]);
 
   // Sync on mount and on tab focus — restores playback position and countdown state
   // Full sync on mount only — restores track, elapsed, countdown
   useEffect(() => {
     getEventSync(event.id).then((sync) => {
       if (sync.status === "Ended") {
-        setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
-        router.refresh();
+        triggerEnding();
         return;
       }
       setTrackIndex(sync.currentTrackIndex);
@@ -255,6 +256,8 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const currentTrack = approvedTracks[trackIndex] ?? null;
   const isCountdown = countdown !== null;
 
+
+  if (isEnding) return <EventEndingScreen eventTitle={event.title} onDone={() => router.refresh()} />;
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16 pb-28">
