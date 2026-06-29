@@ -1,11 +1,12 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { getEventSync, getEventComments, postEventComment } from "@/lib/api";
+import { getEventSync, getEventComments, postEventComment, getEvent } from "@/lib/api";
 import { useEventHub, HubTrack } from "@/hooks/useEventHub";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
 import EventEndingScreen from "./EventEndingScreen";
+import EventEnded from "./EventEnded";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -75,6 +76,8 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
+  const [showEnded, setShowEnded] = useState(false);
+  const [endedEvent, setEndedEvent] = useState<typeof event | null>(null);
 
   // Current event track (for comments eventTrackId)
   const [currentEventTrackId, setCurrentEventTrackId] = useState<number | null>(
@@ -159,8 +162,10 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const triggerEnding = useCallback(() => {
     setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
     setIsEnding(true);
+    // Prefetch ended event data so EventEnded renders immediately after animation
+    getEvent(event.id).then(setEndedEvent).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [event.id]);
 
   useEffect(() => {
     if (eventStatus === "Ended") triggerEnding();
@@ -200,8 +205,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     const checkSync = () => {
       getEventSync(event.id).then((sync) => {
         if (sync.status === "Ended") {
-          setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
-          router.refresh();
+          triggerEnding();
         } else if (sync.countdownSeconds > 0 && countdown === null) {
           startCountdown(Math.ceil(sync.countdownSeconds));
         }
@@ -263,7 +267,13 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const isCountdown = countdown !== null;
 
 
-  if (isEnding) return <EventEndingScreen eventTitle={event.title} onDone={() => router.refresh()} />;
+  if (showEnded && endedEvent) return <EventEnded event={endedEvent} />;
+  if (isEnding) return (
+    <EventEndingScreen
+      eventTitle={event.title}
+      onDone={() => { if (endedEvent) setShowEnded(true); else router.refresh(); }}
+    />
+  );
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16 pb-28">
