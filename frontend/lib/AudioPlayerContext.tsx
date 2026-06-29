@@ -98,7 +98,7 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
     const audio = audioRef.current;
     if (!audio) return;
     audio.currentTime = seconds;
-    audio.play().catch(() => {});
+    if (audio.paused) audio.play().catch(() => {});
   };
 
   const dismiss = () => {
