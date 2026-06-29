@@ -58,9 +58,11 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
       if (unlockedRef.current) return;
       const audio = audioRef.current;
       if (audio) {
-        audio.muted = true;
-        audio.play().then(() => { audio.pause(); audio.muted = false; audio.currentTime = 0; }).catch(() => {});
         unlockedRef.current = true;
+        if (audio.paused) {
+          audio.muted = true;
+          audio.play().then(() => { audio.pause(); audio.muted = false; audio.currentTime = 0; }).catch(() => {});
+        }
       }
       document.removeEventListener("click", unlock);
       document.removeEventListener("touchstart", unlock);

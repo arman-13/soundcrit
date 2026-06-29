@@ -138,21 +138,19 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   }, [eventStatus, setIsLive, setIsCountdown, setLiveEventId, router]);
 
   // Sync on mount and on tab focus — restores playback position and countdown state
-  const syncState = useCallback(() => {
+  // Full sync on mount only — restores track, elapsed, countdown
+  useEffect(() => {
     getEventSync(event.id).then((sync) => {
-      // Check if event has ended (missed EventEnded signal while tab was hidden)
-      if (sync.status === "Ended" || sync.currentTrackIndex < 0) {
+      if (sync.status === "Ended") {
         setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
         router.refresh();
         return;
       }
       setTrackIndex(sync.currentTrackIndex);
-
       if (sync.countdownSeconds > 0) {
         startCountdown(Math.ceil(sync.countdownSeconds));
         return;
       }
-
       setIsCountdown(false);
       setCountdown(null);
       const track = approvedTracks[sync.currentTrackIndex];
@@ -160,23 +158,30 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         setCurrentEventTrackId(track.id);
         setElapsed(sync.elapsedSeconds);
         if (playerTrack?.id !== track.trackId) {
-          // Track changed — play and seek
           playTrack(toTrack(track), approvedTracks.map(toTrack));
           setTimeout(() => seekTo(sync.elapsedSeconds), 100);
           getEventComments(event.id, track.id).then(setComments).catch(() => {});
         }
-        // Don't seek if same track is already playing — avoids stutter on tab re-focus
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id, approvedTracks, startCountdown]);
+  }, [event.id]);
 
+  // On tab re-focus: only check if event ended — don't touch audio to avoid glitches
   useEffect(() => {
-    syncState();
-    const onVisible = () => { if (document.visibilityState === "visible") syncState(); };
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      getEventSync(event.id).then((sync) => {
+        if (sync.status === "Ended") {
+          setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
+          router.refresh();
+        }
+      }).catch(() => {});
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [syncState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.id]);
 
   // Live elapsed timer — resets when track changes
   useEffect(() => {
@@ -220,20 +225,6 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const currentTrack = approvedTracks[trackIndex] ?? null;
   const isCountdown = countdown !== null;
 
-  // Fallback: if elapsed exceeds track duration, SignalR missed the signal — re-sync once
-  const syncedFallbackRef = useRef(false);
-  useEffect(() => { syncedFallbackRef.current = false; }, [trackIndex]);
-  useEffect(() => {
-    const track = approvedTracks[trackIndex];
-    if (!track || isCountdown || syncedFallbackRef.current) return;
-    const [m, s] = track.duration.split(":").map(Number);
-    const durationSeconds = m * 60 + (s || 0);
-    if (durationSeconds > 0 && elapsed > durationSeconds + 3) {
-      syncedFallbackRef.current = true;
-      syncState();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elapsed, trackIndex, isCountdown]);
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-16 pb-28">
