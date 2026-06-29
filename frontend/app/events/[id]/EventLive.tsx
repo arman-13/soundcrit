@@ -183,7 +183,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const handleComment = async () => {
     if (!token || !commentText.trim() || !currentEventTrackId) return;
     setSubmitting(true);
-    const timestamp = Math.max(0, Math.floor(elapsed) - 2);
+    const timestamp = isCountdown ? -1 : Math.max(0, Math.floor(elapsed) - 2);
     const text = commentText.trim();
     setCommentText("");
     const optimisticId = -Date.now();
@@ -243,20 +243,25 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
 {currentTrack ? (
         <div className="flex flex-col md:flex-row gap-8 mb-12">
           <div className="relative w-full md:w-56 aspect-square rounded-xl overflow-hidden bg-white/5 shrink-0">
-            {!isCountdown && <Image src={currentTrack.coverImageUrl} alt={currentTrack.title} fill className="object-cover" />}
+            <Image src={currentTrack.coverImageUrl} alt={currentTrack.title} fill className="object-cover" />
+            {isCountdown && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span className="text-3xl font-light text-white/60 tabular-nums">
+                  {countdown != null ? String(Math.ceil(countdown)).padStart(2, "0") : "00"}s
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex flex-col justify-center">
-            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">{isCountdown ? "—" : currentTrack.genre}</p>
-            <h1 className="text-3xl font-light text-white/90 mb-1">
-              {isCountdown
-                ? <span className="flex items-baseline gap-3">_ <span className="text-xl text-white/40 tabular-nums">{countdown != null ? String(Math.ceil(countdown)).padStart(2, "0") : "00"}s</span></span>
-                : currentTrack.title}
-            </h1>
-            <p className="text-base text-white/45 mb-2">{isCountdown ? "—" : currentTrack.artist}</p>
-            {!isCountdown && currentTrack.description && (
+            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">{currentTrack.genre}</p>
+            <h1 className="text-3xl font-light text-white/90 mb-1">{currentTrack.title}</h1>
+            <p className="text-base text-white/45 mb-2">{currentTrack.artist}</p>
+            {currentTrack.description && (
               <p className="text-sm text-white/35 leading-relaxed mb-3 max-w-sm">{currentTrack.description}</p>
             )}
-            {!isCountdown && <p className="text-xs text-white/25 tabular-nums">{fmtTime(elapsed)} / {currentTrack.duration}</p>}
+            {isCountdown && (
+              <p className="text-xs text-white/25 tracking-wide">Up next in {countdown != null ? String(Math.ceil(countdown)).padStart(2, "0") : "00"}s</p>
+            )}
           </div>
         </div>
       ) : (
@@ -274,7 +279,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
               </div>
               <div>
                 <span className="text-sm font-medium text-white/70 mr-2">{c.displayName}</span>
-                <span className="text-xs text-white/25 mr-2">{fmtTime(c.trackTimestamp)}</span>
+                {c.trackTimestamp >= 0 && <span className="text-xs text-white/25 mr-2">{fmtTime(c.trackTimestamp)}</span>}
                 <span className="text-sm text-white/50">{c.content}</span>
               </div>
             </div>
