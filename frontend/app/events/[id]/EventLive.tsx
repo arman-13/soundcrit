@@ -80,6 +80,20 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   );
 
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const preloadRef = useRef<HTMLAudioElement | null>(null);
+  const trackIndexRef = useRef(trackIndex);
+  useEffect(() => { trackIndexRef.current = trackIndex; }, [trackIndex]);
+
+  const playNextTrack = useCallback((index: number) => {
+    const next = approvedTracks[index];
+    if (!next) return;
+    setTrackIndex(index);
+    setCurrentEventTrackId(next.id);
+    setComments([]);
+    playTrack(toTrack(next), approvedTracks.map(toTrack));
+    getEventComments(event.id, next.id).then(setComments).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [approvedTracks, event.id]);
 
   const startCountdown = useCallback((seconds: number) => {
     if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
@@ -91,25 +105,39 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
           clearInterval(interval);
           countdownIntervalRef.current = null;
           setIsCountdown(false);
+          playNextTrack(trackIndexRef.current + 1);
           return null;
         }
         return prev - 1;
       });
     }, 1000);
     countdownIntervalRef.current = interval;
-  }, [setIsCountdown]);
+  }, [setIsCountdown, playNextTrack]);
+
+  // Preload next track audio during countdown so it starts instantly
+  useEffect(() => {
+    const next = approvedTracks[trackIndex + 1];
+    if (countdown === null || !next?.audioUrl) { preloadRef.current = null; return; }
+    const audio = new Audio();
+    audio.preload = "auto";
+    audio.src = next.audioUrl;
+    preloadRef.current = audio;
+    return () => { preloadRef.current = null; };
+  }, [countdown !== null, trackIndex, approvedTracks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleTrackChanged = useCallback((hubTrack: HubTrack) => {
     if (countdownIntervalRef.current) { clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; }
     setCountdown(null);
     setIsCountdown(false);
+    // Skip if countdown expiry already started playing this track
+    if (playerTrack?.id === hubTrack.trackId) return;
     setTrackIndex(hubTrack.index);
     setCurrentEventTrackId(hubTrack.eventTrackId);
     playTrack(hubToTrack(hubTrack), approvedTracks.map(toTrack));
     setComments([]);
     getEventComments(event.id, hubTrack.eventTrackId).then(setComments).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [approvedTracks, event.id]);
+  }, [approvedTracks, event.id, playerTrack?.id]);
 
   const { eventStatus } = useEventHub(
     event.id, token,
