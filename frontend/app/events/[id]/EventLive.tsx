@@ -79,22 +79,28 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     approvedTracks[event.playbackState.currentTrackIndex]?.id ?? null
   );
 
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const startCountdown = useCallback((seconds: number) => {
+    if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
     setIsCountdown(true);
     setCountdown(seconds);
     const interval = setInterval(() => {
       setCountdown((prev) => {
         if (prev === null || prev <= 1) {
           clearInterval(interval);
+          countdownIntervalRef.current = null;
           setIsCountdown(false);
           return null;
         }
         return prev - 1;
       });
     }, 1000);
+    countdownIntervalRef.current = interval;
   }, [setIsCountdown]);
 
   const handleTrackChanged = useCallback((hubTrack: HubTrack) => {
+    if (countdownIntervalRef.current) { clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; }
     setCountdown(null);
     setIsCountdown(false);
     setTrackIndex(hubTrack.index);
@@ -143,15 +149,16 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
 
       setIsCountdown(false);
       setCountdown(null);
-      setElapsed(sync.elapsedSeconds);
       const track = approvedTracks[sync.currentTrackIndex];
       if (track) {
         setCurrentEventTrackId(track.id);
         if (playerTrack?.id !== track.trackId) {
+          // Track changed — play and seek
           playTrack(toTrack(track), approvedTracks.map(toTrack));
           setTimeout(() => seekTo(sync.elapsedSeconds), 100);
+          getEventComments(event.id, track.id).then(setComments).catch(() => {});
         }
-        getEventComments(event.id, track.id).then(setComments).catch(() => {});
+        // Don't seek if same track is already playing — avoids stutter on tab re-focus
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
