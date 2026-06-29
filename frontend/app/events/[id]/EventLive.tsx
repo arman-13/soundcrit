@@ -6,7 +6,7 @@ import { useEventHub, HubTrack } from "@/hooks/useEventHub";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 function fmtTime(s: number) {
