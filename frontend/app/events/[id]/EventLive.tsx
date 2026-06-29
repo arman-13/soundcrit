@@ -173,7 +173,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         if (sync.status === "Ended") {
           setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
           router.refresh();
-        } else if (sync.countdownSeconds > 0 && !isCountdown) {
+        } else if (sync.countdownSeconds > 0 && countdown === null) {
           startCountdown(Math.ceil(sync.countdownSeconds));
         }
       }).catch(() => {});
@@ -183,7 +183,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     document.addEventListener("visibilitychange", onVisible);
     return () => { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id, isCountdown]);
+  }, [event.id, countdown]);
 
   // Live elapsed timer — resets when track changes
   useEffect(() => {
