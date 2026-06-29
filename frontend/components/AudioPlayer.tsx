@@ -27,8 +27,7 @@ export default function AudioPlayer() {
     if (!audio || !currentTrack) return;
     audio.src = currentTrack.audioUrl;
     audio.volume = 1;
-    audio.muted = true;
-    audio.play().then(() => { audio.muted = false; audio.volume = 1; setIsPlaying(true); }).catch(() => setIsPlaying(false));
+    audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTrack?.id]);
 

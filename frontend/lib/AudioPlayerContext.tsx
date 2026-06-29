@@ -52,20 +52,13 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const unlockedRef = useRef(false);
 
-  // Unlock audio on first user interaction so autoplay works without gesture later
+  // On first user gesture: call play() with no src — marks this audio element as
+  // user-gesture-allowed so subsequent programmatic plays work without a gesture.
   useEffect(() => {
     const unlock = () => {
       if (unlockedRef.current) return;
-      const audio = audioRef.current;
-      if (audio) {
-        unlockedRef.current = true;
-        if (audio.paused) {
-          audio.muted = true;
-          audio.play().then(() => { audio.pause(); audio.muted = false; audio.currentTime = 0; }).catch(() => {});
-        }
-      }
-      document.removeEventListener("click", unlock);
-      document.removeEventListener("touchstart", unlock);
+      unlockedRef.current = true;
+      audioRef.current?.play().catch(() => {}); // fails (no src yet) but unlocks the element
     };
     document.addEventListener("click", unlock, { once: true });
     document.addEventListener("touchstart", unlock, { once: true });

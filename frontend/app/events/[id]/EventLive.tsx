@@ -106,7 +106,6 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     setTrackIndex(hubTrack.index);
     setCurrentEventTrackId(hubTrack.eventTrackId);
     playTrack(hubToTrack(hubTrack), approvedTracks.map(toTrack));
-    setTimeout(() => seekTo(0), 100);
     setComments([]);
     getEventComments(event.id, hubTrack.eventTrackId).then(setComments).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
