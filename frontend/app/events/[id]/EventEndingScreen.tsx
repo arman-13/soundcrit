@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Phase = "ended" | "preparing" | "ready";
 
@@ -8,18 +8,16 @@ export default function EventEndingScreen({ eventTitle, onDone }: { eventTitle: 
   const [phase, setPhase] = useState<Phase>("ended");
   const [visible, setVisible] = useState(false);
   const [barWidth, setBarWidth] = useState(0);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
-    // Fade in
     const t0 = setTimeout(() => setVisible(true), 50);
-    // Start filling bar + switch to "preparing"
     const t1 = setTimeout(() => { setPhase("preparing"); setBarWidth(100); }, 2000);
-    // Archive ready
     const t2 = setTimeout(() => setPhase("ready"), 5500);
-    // Navigate
-    const t3 = setTimeout(() => onDone(), 7500);
+    const t3 = setTimeout(() => onDoneRef.current(), 7500);
     return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [onDone]);
+  }, []); // run once on mount — onDoneRef stays current without restarting timers
 
   return (
     <div

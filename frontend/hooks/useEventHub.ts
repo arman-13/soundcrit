@@ -75,6 +75,11 @@ export function useEventHub(
       setApprovedUserId(userId);
     });
 
+    builder.onreconnected(() => {
+      console.log("[SignalR] Reconnected, rejoining event", eventId);
+      builder.invoke("JoinEvent", eventId);
+    });
+
     let stopped = false;
     builder.start()
       .then(() => {
