@@ -166,10 +166,9 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
-  // On tab re-focus: only check if event ended — don't touch audio to avoid glitches
+  // Poll every 10s and on tab re-focus: catch missed EventEnded signals
   useEffect(() => {
-    const onVisible = () => {
-      if (document.visibilityState !== "visible") return;
+    const checkEnded = () => {
       getEventSync(event.id).then((sync) => {
         if (sync.status === "Ended") {
           setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
@@ -177,8 +176,10 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         }
       }).catch(() => {});
     };
+    const interval = setInterval(checkEnded, 10000);
+    const onVisible = () => { if (document.visibilityState === "visible") checkEnded(); };
     document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id]);
 
