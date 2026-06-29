@@ -2,7 +2,7 @@
 
 import { incrementPlay } from "@/lib/api";
 import { Track } from "@/types";
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 interface AudioPlayerContextType {
   currentTrack: Track | null;
@@ -50,6 +50,28 @@ export function AudioPlayerProvider({ children }: { children: React.ReactNode })
   const [isCountdown, setIsCountdown] = useState(false);
   const [liveEventId, setLiveEventId] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const unlockedRef = useRef(false);
+
+  // Unlock audio on first user interaction so autoplay works without gesture later
+  useEffect(() => {
+    const unlock = () => {
+      if (unlockedRef.current) return;
+      const audio = audioRef.current;
+      if (audio) {
+        audio.muted = true;
+        audio.play().then(() => { audio.pause(); audio.muted = false; audio.currentTime = 0; }).catch(() => {});
+        unlockedRef.current = true;
+      }
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("touchstart", unlock);
+    };
+    document.addEventListener("click", unlock, { once: true });
+    document.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("touchstart", unlock);
+    };
+  }, []);
 
   const playTrack = (track: Track, newQueue?: Track[]) => {
     setCurrentTrack(track);

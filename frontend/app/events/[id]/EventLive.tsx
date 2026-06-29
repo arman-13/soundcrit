@@ -163,7 +163,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id, approvedTracks]);
+  }, [event.id, approvedTracks, startCountdown]);
 
   useEffect(() => {
     syncState();
@@ -214,13 +214,16 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const currentTrack = approvedTracks[trackIndex] ?? null;
   const isCountdown = countdown !== null;
 
-  // Fallback: if elapsed exceeds track duration, SignalR missed the signal — re-sync
+  // Fallback: if elapsed exceeds track duration, SignalR missed the signal — re-sync once
+  const syncedFallbackRef = useRef(false);
+  useEffect(() => { syncedFallbackRef.current = false; }, [trackIndex]);
   useEffect(() => {
     const track = approvedTracks[trackIndex];
-    if (!track || isCountdown) return;
+    if (!track || isCountdown || syncedFallbackRef.current) return;
     const [m, s] = track.duration.split(":").map(Number);
     const durationSeconds = m * 60 + (s || 0);
     if (durationSeconds > 0 && elapsed > durationSeconds + 3) {
+      syncedFallbackRef.current = true;
       syncState();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
