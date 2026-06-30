@@ -83,9 +83,6 @@ public class EventsController : ControllerBase
     public async Task<ActionResult> Create(CreateEventRequest req)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var user = await _userManager.FindByIdAsync(userId);
-        var isAdmin = await _userManager.IsInRoleAsync(user!, "Admin");
-        if (!isAdmin) return Forbid();
 
         var ev = new Event
         {
