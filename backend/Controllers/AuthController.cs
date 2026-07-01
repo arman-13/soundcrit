@@ -14,11 +14,13 @@ public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly JwtService _jwt;
+    private readonly EmailService _email;
 
-    public AuthController(UserManager<ApplicationUser> userManager, JwtService jwt)
+    public AuthController(UserManager<ApplicationUser> userManager, JwtService jwt, EmailService email)
     {
         _userManager = userManager;
         _jwt = jwt;
+        _email = email;
     }
 
     [HttpPost("register")]
@@ -35,6 +37,9 @@ public class AuthController : ControllerBase
         var result = await _userManager.CreateAsync(user, req.Password);
         if (!result.Succeeded)
             return BadRequest(result.Errors.Select(e => e.Description));
+
+        var verifyToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+        _ = _email.SendEmailVerificationAsync(user.Email!, user.DisplayName, verifyToken);
 
         return Ok(new AuthResponse(
             Token: _jwt.GenerateToken(user),
@@ -88,6 +93,39 @@ public class AuthController : ControllerBase
             ?? _userManager.Users.FirstOrDefault(u => u.DisplayName.ToLower() == name.ToLower());
         if (user is null) return NotFound();
         return Ok(new PublicUserDto(user.Id, user.UserName!, user.DisplayName, user.AvatarUrl, user.Bio));
+    }
+
+    [HttpPost("verify-email")]
+    public async Task<ActionResult> VerifyEmail(VerifyEmailRequest req)
+    {
+        var user = await _userManager.FindByEmailAsync(req.Email);
+        if (user is null) return BadRequest("Invalid request.");
+        var result = await _userManager.ConfirmEmailAsync(user, req.Token);
+        if (!result.Succeeded) return BadRequest("Invalid or expired verification link.");
+        return Ok();
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult> ForgotPassword(ForgotPasswordRequest req)
+    {
+        var user = await _userManager.FindByEmailAsync(req.Email);
+        // Always return OK to avoid leaking which emails are registered
+        if (user is not null)
+        {
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            _ = _email.SendPasswordResetAsync(user.Email!, user.DisplayName, token);
+        }
+        return Ok();
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<ActionResult> ResetPassword(ResetPasswordRequest req)
+    {
+        var user = await _userManager.FindByEmailAsync(req.Email);
+        if (user is null) return BadRequest("Invalid request.");
+        var result = await _userManager.ResetPasswordAsync(user, req.Token, req.NewPassword);
+        if (!result.Succeeded) return BadRequest("Invalid or expired reset link.");
+        return Ok();
     }
 
     private static UserDto ToDto(ApplicationUser u) => new(

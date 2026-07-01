@@ -70,12 +70,17 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-8 text-sm text-white/35 text-center">
-          Don&apos;t have an account?{" "}
-          <Link href="/register" className="text-white/60 hover:text-white transition-colors">
-            Sign up
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <Link href="/forgot-password" className="text-sm text-white/35 hover:text-white/60 transition-colors">
+            Forgot password?
           </Link>
-        </p>
+          <p className="text-sm text-white/35">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="text-white/60 hover:text-white transition-colors">
+              Sign up
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

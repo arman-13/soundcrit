@@ -259,3 +259,24 @@ export const postEventComment = (eventId: number, body: { content: string; event
 
 export const getEventComments = (eventId: number, eventTrackId: number) =>
   fetchApi<EventComment[]>(`/api/events/${eventId}/comments/${eventTrackId}`);
+
+export const forgotPassword = (email: string) =>
+  fetchApi<void>("/api/auth/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+export const resetPassword = (email: string, token: string, newPassword: string) =>
+  fetchApi<void>("/api/auth/reset-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, token, newPassword }),
+  });
+
+export const verifyEmail = (email: string, token: string) =>
+  fetchApi<void>("/api/auth/verify-email", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, token }),
+  });
