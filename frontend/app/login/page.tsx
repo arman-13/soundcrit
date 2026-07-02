@@ -2,12 +2,14 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const { login } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const passwordReset = searchParams.get("reset") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -34,6 +36,12 @@ export default function LoginPage() {
           <h1 className="text-2xl font-light text-white/90 mb-2">Welcome back</h1>
           <p className="text-sm text-white/40">Sign in to your account</p>
         </div>
+
+        {passwordReset && (
+          <div className="mb-6 px-4 py-3 rounded bg-white/5 border border-white/10 text-sm text-white/60">
+            Password updated. Sign in with your new password.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
@@ -83,5 +91,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
