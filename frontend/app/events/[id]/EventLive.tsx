@@ -153,7 +153,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
         next[idx] = comment;
         return next;
       }
-      return [comment, ...prev];
+      return [...prev, comment];
     }),
     startCountdown,
     handleTrackChanged,
@@ -239,7 +239,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     const text = commentText.trim();
     setCommentText("");
     const optimisticId = -Date.now();
-    setComments((prev) => [{
+    setComments((prev) => [...prev, {
       id: optimisticId,
       eventTrackId: currentEventTrackId,
       userId: user?.id ?? "",
@@ -248,7 +248,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       displayName: isAnonymous ? "Anonymous" : (user?.displayName ?? user?.email ?? "You"),
       isAnonymous,
       createdAt: new Date().toISOString(),
-    }, ...prev]);
+    }]);
     try {
       await postEventComment(event.id, {
         content: text,
@@ -317,7 +317,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       {/* Comments */}
       <div className="mt-8">
         <h2 className="text-xs tracking-widest uppercase text-white/25 mb-6">Live Comments</h2>
-        <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
+        <div className="space-y-3 mb-6 max-h-64 overflow-y-auto flex flex-col">
           {comments.map((c) => (
             <div key={c.id} className="flex gap-3">
               <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs text-white/50 shrink-0">
@@ -331,6 +331,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
             </div>
           ))}
           {comments.length === 0 && <p className="text-sm text-white/25">No comments yet.</p>}
+          <div ref={(el) => el?.scrollIntoView()} />
         </div>
 
         {user ? (
