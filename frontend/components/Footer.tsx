@@ -7,7 +7,7 @@ export default function Footer() {
           <p className="text-sm text-white/40 mt-1">Where music meets critique. Independent since 2026.</p>
         </div>
         <div className="text-sm text-white/40 space-y-1">
-          <p>soundcrit00@gmail.com</p>
+          <p>studio@soundcrit.com</p>
           <p>© {new Date().getFullYear()} Soundcritic. All rights reserved.</p>
         </div>
       </div>

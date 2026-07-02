@@ -11,7 +11,7 @@ public class EmailService
     public EmailService(IResend resend, IConfiguration config)
     {
         _resend = resend;
-        _from = config["Resend:From"] ?? "noreply@soundcrit.com";
+        _from = config["Resend:From"] ?? "studio@soundcrit.com";
         _appUrl = config["AppUrl"] ?? "https://soundcrit.com";
     }
 
