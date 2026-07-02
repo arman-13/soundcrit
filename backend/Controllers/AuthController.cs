@@ -39,7 +39,8 @@ public class AuthController : ControllerBase
             return BadRequest(result.Errors.Select(e => e.Description));
 
         var verifyToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-        _ = _email.SendEmailVerificationAsync(user.Email!, user.DisplayName, verifyToken);
+        try { await _email.SendEmailVerificationAsync(user.Email!, user.DisplayName, verifyToken); }
+        catch (Exception ex) { Console.WriteLine($"[Email] Verification send failed: {ex.Message}"); }
 
         return Ok(new AuthResponse(
             Token: _jwt.GenerateToken(user),
@@ -113,7 +114,8 @@ public class AuthController : ControllerBase
         if (user is not null)
         {
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            _ = _email.SendPasswordResetAsync(user.Email!, user.DisplayName, token);
+            try { await _email.SendPasswordResetAsync(user.Email!, user.DisplayName, token); }
+            catch (Exception ex) { Console.WriteLine($"[Email] Password reset send failed: {ex.Message}"); }
         }
         return Ok();
     }
