@@ -122,6 +122,14 @@ export default async function HomePage() {
           </section>
         )}
 
+        {/* Mission */}
+        <section className="max-w-xl">
+          <p className="text-xs tracking-widest uppercase text-white/25 mb-4">Mission</p>
+          <p className="text-base text-white/40 leading-relaxed">
+            No algorithm. No noise. Just music made without commercial pressure — and the people serious about it.
+          </p>
+        </section>
+
       </div>
     </div>
   );

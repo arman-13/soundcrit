@@ -24,8 +24,8 @@ export default function Header() {
   };
 
   const navLinks = user
-    ? [...publicLinks, { href: "/my-music", label: "Studio" }, { href: "/my-events", label: "Sessions" }, { href: "/about", label: "About" }]
-    : [...publicLinks, { href: "/about", label: "About" }];
+    ? [...publicLinks, { href: "/my-music", label: "Studio" }, { href: "/my-events", label: "Sessions" }]
+    : publicLinks;
 
   return (
     <header className="border-b border-white/10 sticky top-0 z-40 backdrop-blur-md bg-[#0a0a0a]/80">
