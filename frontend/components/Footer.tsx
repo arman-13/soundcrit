@@ -5,11 +5,10 @@ export default function Footer() {
         <div>
           <p className="text-sm font-semibold tracking-widest uppercase text-white/90">Soundcritic</p>
           <p className="text-sm text-white/40 mt-1">Where music meets critique.</p>
-          <a href="/about" className="text-xs text-white/25 hover:text-white/50 transition-colors mt-2 inline-block">Made by ↗</a>
         </div>
         <div className="text-sm text-white/40 space-y-1">
           <p>studio@soundcrit.com</p>
-          <p>© {new Date().getFullYear()} Soundcritic. All rights reserved.</p>
+          <a href="/about" className="text-xs text-white/25 hover:text-white/50 transition-colors inline-block">Made by ↗</a>
         </div>
       </div>
     </footer>
