@@ -63,7 +63,7 @@ public class EventRequestsController : ControllerBase
             .Where(r => r.EventId == eventId)
             .OrderBy(r => r.RequestedAt)
             .Join(_db.Users, r => r.UserId, u => u.Id, (r, u) => new EventRequestDto(
-                r.Id, r.UserId, u.DisplayName ?? u.UserName ?? r.UserId, r.Message, r.Status, r.RequestedAt))
+                r.Id, r.UserId, u.DisplayName ?? u.UserName ?? r.UserId, u.UserName, u.AvatarUrl, r.Message, r.Status, r.RequestedAt))
             .ToListAsync();
         return Ok(requests);
     }

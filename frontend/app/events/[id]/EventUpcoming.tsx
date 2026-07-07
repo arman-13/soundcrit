@@ -1,7 +1,8 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack, getEvent } from "@/lib/api";
+import { useAudioPlayer } from "@/lib/AudioPlayerContext";
+import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack, reorderEventTracks, getEvent } from "@/lib/api";
 import { useEventHub } from "@/hooks/useEventHub";
 import { LiveEventDetail, Track, EventTrack } from "@/types";
 import Image from "next/image";
@@ -70,7 +71,9 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [requests, setRequests] = useState<import("@/types").EventRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
   const [submissions, setSubmissions] = useState<EventTrack[]>([]);
+  const [submissionsLoading, setSubmissionsLoading] = useState(true);
   const [myTracks, setMyTracks] = useState<Track[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<number | "">(newTrackId ? Number(newTrackId) : "");
   const [uploadToProfile, setUploadToProfile] = useState(!!newTrackId);
@@ -85,11 +88,11 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
   useEffect(() => {
     if (!token) return;
     if (isHost) {
-      getEventRequests(event.id, token).then(setRequests).catch(() => {});
+      getEventRequests(event.id, token).then(setRequests).catch(() => {}).finally(() => setRequestsLoading(false));
       getEventTracks(event.id, token).then((tracks) => {
         setSubmissions(tracks);
         if (tracks.some((t) => t.userId === user?.id)) setTrackSubmitted(true);
-      }).catch(() => {});
+      }).catch(() => {}).finally(() => setSubmissionsLoading(false));
       getAllTracksAdmin(token).then((res) => setMyTracks(res.data)).catch(() => {});
     } else {
       getMyEventRequest(event.id, token)
@@ -253,59 +256,178 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
 
       {isHost && (
         <div className="mt-12 text-left space-y-10">
-          {requests.length > 0 && (
-            <div>
-              <h2 className="text-xs tracking-widest uppercase text-white/25 mb-4">Join Requests</h2>
+          <div>
+            <h2 className="text-xs tracking-widest uppercase text-white/25 mb-4">Join Requests</h2>
+            {requestsLoading ? (
+              <div className="flex items-center gap-2 py-2">
+                <span className="w-3 h-3 rounded-full border border-white/20 border-t-white/60 animate-spin" />
+              </div>
+            ) : requests.length === 0 ? (
+              <p className="text-sm text-white/25">No requests yet.</p>
+            ) : (
               <div className="space-y-3">
                 {requests.map((r) => (
                   <RequestRow key={r.id} request={r} eventId={event.id} token={token!}
                     onUpdate={(id, status) => setRequests((prev) => prev.map((x) => x.id === id ? { ...x, status } : x))} />
                 ))}
               </div>
-            </div>
-          )}
-
-          <div>
-            <h2 className="text-xs tracking-widest uppercase text-white/25 mb-4">Track Submissions</h2>
-            {submissions.length === 0 ? (
-              <p className="text-sm text-white/25">No tracks submitted yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {submissions.map((t, i) => (
-                  <div key={t.id} className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/8">
-                    <div className="relative w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5">
-                      <Image src={t.coverImageUrl} alt={t.title} fill className="object-cover" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white/75 truncate">{t.title}</p>
-                      <p className="text-xs text-white/35">{t.artist} · {t.duration}</p>
-                    </div>
-                    <span className={`text-xs shrink-0 ${t.status === "Approved" ? "text-green-400/60" : t.status === "Rejected" ? "text-red-400/60" : "text-white/30"}`}>
-                      {t.status}
-                    </span>
-                    {t.status === "Pending" && (
-                      <div className="flex gap-2 shrink-0">
-                        <button
-                          onClick={async () => {
-                            await updateEventTrack(event.id, t.id, "Approved", i + 1, token!);
-                            setSubmissions((prev) => prev.map((x) => x.id === t.id ? { ...x, status: "Approved" } : x));
-                          }}
-                          className="text-xs px-3 py-1.5 rounded border border-white/20 text-white/60 hover:border-white/40 transition-colors"
-                        >Approve</button>
-                        <button
-                          onClick={async () => {
-                            await updateEventTrack(event.id, t.id, "Rejected", i + 1, token!);
-                            setSubmissions((prev) => prev.map((x) => x.id === t.id ? { ...x, status: "Rejected" } : x));
-                          }}
-                          className="text-xs px-3 py-1.5 rounded border border-white/10 text-white/30 hover:text-red-400/70 transition-colors"
-                        >Reject</button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
             )}
           </div>
+
+          <TrackSubmissionsList
+            submissions={submissions}
+            loading={submissionsLoading}
+            eventId={event.id}
+            token={token!}
+            onUpdate={(id, status) => setSubmissions((prev) => prev.map((x) => x.id === id ? { ...x, status } : x))}
+            onReorder={setSubmissions}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrackSubmissionsList({ submissions, loading, eventId, token, onUpdate, onReorder }: {
+  submissions: EventTrack[];
+  loading: boolean;
+  eventId: number;
+  token: string;
+  onUpdate: (id: number, status: string) => void;
+  onReorder: (tracks: EventTrack[]) => void;
+}) {
+  const { playTrack, currentTrack, isPlaying, setIsPlaying } = useAudioPlayer();
+  const dragId = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  const handlePlay = (t: EventTrack) => {
+    const asTrack: Track = {
+      id: t.trackId, title: t.title, artist: t.artist, duration: t.duration,
+      audioUrl: t.audioUrl, coverImageUrl: t.coverImageUrl, genre: t.genre ?? "",
+      mood: t.mood, description: t.description,
+      albumTitle: "", publishedAt: "", isPublished: true, playCount: 0, isFeatured: false,
+    };
+    if (currentTrack?.id === t.trackId) {
+      setIsPlaying(!isPlaying);
+    } else {
+      playTrack(asTrack, [asTrack]);
+    }
+  };
+
+  const saveOrder = async (reordered: EventTrack[]) => {
+    const items = reordered
+      .filter((x) => x.status === "Approved")
+      .map((x, idx) => ({ id: x.id, order: idx + 1 }));
+    await reorderEventTracks(eventId, items, token);
+  };
+
+  const handleDrop = async (targetId: number) => {
+    if (dragId.current === null || dragId.current === targetId) return;
+    const approved = submissions.filter((x) => x.status === "Approved");
+    const fromIdx = approved.findIndex((x) => x.id === dragId.current);
+    const toIdx = approved.findIndex((x) => x.id === targetId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    const reordered = [...approved];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    const pending = submissions.filter((x) => x.status !== "Approved");
+    const next = [...reordered, ...pending];
+    onReorder(next);
+    await saveOrder(reordered);
+  };
+
+  return (
+    <div>
+      <h2 className="text-xs tracking-widest uppercase text-white/25 mb-4">Track Submissions</h2>
+      {loading ? (
+        <div className="flex items-center gap-2 py-2">
+          <span className="w-3 h-3 rounded-full border border-white/20 border-t-white/60 animate-spin" />
+        </div>
+      ) : submissions.length === 0 ? (
+        <p className="text-sm text-white/25">No tracks submitted yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {submissions.map((t, i) => (
+            <div
+              key={t.id}
+              draggable={t.status === "Approved"}
+              onDragStart={() => { dragId.current = t.id; }}
+              onDragEnd={() => { dragId.current = null; setDragOver(null); }}
+              onDragOver={(e) => { if (t.status === "Approved") { e.preventDefault(); setDragOver(t.id); } }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={(e) => { e.preventDefault(); setDragOver(null); handleDrop(t.id); }}
+              className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${
+                dragOver === t.id && dragId.current !== t.id
+                  ? "border-white/30 bg-white/[0.05]"
+                  : "border-white/8 bg-white/[0.02]"
+              }`}
+            >
+              {t.status === "Approved" ? (
+                <div className="shrink-0 cursor-grab active:cursor-grabbing text-white/20 hover:text-white/50 transition-colors select-none px-0.5">
+                  <svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor">
+                    <circle cx="3" cy="3" r="1.5"/>
+                    <circle cx="9" cy="3" r="1.5"/>
+                    <circle cx="3" cy="8" r="1.5"/>
+                    <circle cx="9" cy="8" r="1.5"/>
+                    <circle cx="3" cy="13" r="1.5"/>
+                    <circle cx="9" cy="13" r="1.5"/>
+                  </svg>
+                </div>
+              ) : (
+                <div className="w-[12px] shrink-0" />
+              )}
+              <button
+                onClick={() => handlePlay(t)}
+                className="relative w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5 group"
+              >
+                <Image src={t.coverImageUrl} alt={t.title} fill className="object-cover" />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {currentTrack?.id === t.trackId && isPlaying ? (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
+                      <rect x="1" y="1" width="3.5" height="10" rx="1"/>
+                      <rect x="7.5" y="1" width="3.5" height="10" rx="1"/>
+                    </svg>
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
+                      <path d="M2 1.5l9 4.5-9 4.5z"/>
+                    </svg>
+                  )}
+                </div>
+                {currentTrack?.id === t.trackId && isPlaying && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                  </div>
+                )}
+              </button>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white/75 truncate">{t.title}</p>
+                <p className="text-xs text-white/35">{t.artist} · {t.duration}</p>
+              </div>
+              <span className={`text-xs shrink-0 ${t.status === "Approved" ? "text-green-400/60" : t.status === "Rejected" ? "text-red-400/60" : "text-white/30"}`}>
+                {t.status}
+              </span>
+              {t.status === "Pending" && (
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={async () => {
+                      await updateEventTrack(eventId, t.id, "Approved", i + 1, token);
+                      onUpdate(t.id, "Approved");
+                    }}
+                    className="text-xs px-3 py-1.5 rounded border border-white/20 text-white/60 hover:border-white/40 transition-colors"
+                  >Approve</button>
+                  <button
+                    onClick={async () => {
+                      await updateEventTrack(eventId, t.id, "Rejected", i + 1, token);
+                      onUpdate(t.id, "Rejected");
+                    }}
+                    className="text-xs px-3 py-1.5 rounded border border-white/10 text-white/30 hover:text-red-400/70 transition-colors"
+                  >Reject</button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -323,6 +445,23 @@ function RequestRow({ request, eventId, token, onUpdate }: {
   };
   return (
     <div className="flex items-center gap-4 p-4 rounded-lg bg-white/[0.02] border border-white/8">
+      {request.username ? (
+        <Link href={`/artists/${request.username}`} target="_blank" className="shrink-0 group">
+          <div className="relative w-8 h-8 rounded-full overflow-hidden bg-white/10 ring-1 ring-white/10 group-hover:ring-white/30 transition-all">
+            {request.avatarUrl ? (
+              <Image src={request.avatarUrl} alt={request.displayName ?? ""} fill className="object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-xs text-white/50">
+                {(request.displayName ?? request.username)?.[0]?.toUpperCase()}
+              </div>
+            )}
+          </div>
+        </Link>
+      ) : (
+        <div className="w-8 h-8 rounded-full bg-white/10 shrink-0 flex items-center justify-center text-xs text-white/50">
+          {(request.displayName ?? request.userId)?.[0]?.toUpperCase()}
+        </div>
+      )}
       <div className="flex-1 min-w-0">
         <p className="text-sm text-white/70">{request.displayName ?? request.userId}</p>
         {request.message && <p className="text-xs text-white/40 mt-0.5">{request.message}</p>}

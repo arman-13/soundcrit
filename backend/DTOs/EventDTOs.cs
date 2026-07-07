@@ -49,7 +49,7 @@ public record UpdateEventRequest(
 );
 
 public record EventRequestDto(
-    int Id, string UserId, string DisplayName, string? Message, string Status, DateTime RequestedAt
+    int Id, string UserId, string DisplayName, string? Username, string? AvatarUrl, string? Message, string Status, DateTime RequestedAt
 );
 
 public record SubmitJoinRequestBody(string? Message);
@@ -59,6 +59,9 @@ public record UpdateRequestStatusBody(string Status);
 public record SubmitEventTrackBody(int TrackId, bool UploadToProfile);
 
 public record UpdateEventTrackBody(string Status, int Order);
+
+public record ReorderEventTracksBody(List<ReorderItem> Items);
+public record ReorderItem(int Id, int Order);
 
 public record EventCommentDto(
     int Id, int EventTrackId, string UserId, string DisplayName,

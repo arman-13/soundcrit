@@ -157,6 +157,8 @@ export interface EventRequest {
   id: number;
   userId: string;
   displayName?: string;
+  username?: string;
+  avatarUrl?: string;
   message?: string;
   status: string;
   requestedAt: string;

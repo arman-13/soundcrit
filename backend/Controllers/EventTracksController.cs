@@ -83,6 +83,26 @@ public class EventTracksController : ControllerBase
     }
 
     [Authorize]
+    [HttpPut("reorder")]
+    public async Task<IActionResult> Reorder(int eventId, ReorderEventTracksBody body)
+    {
+        var ev = await _db.Events.FindAsync(eventId);
+        if (ev is null) return NotFound();
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (ev.HostId != userId) return Forbid();
+
+        var ids = body.Items.Select(i => i.Id).ToList();
+        var tracks = await _db.EventTracks.Where(t => t.EventId == eventId && ids.Contains(t.Id)).ToListAsync();
+        foreach (var item in body.Items)
+        {
+            var track = tracks.FirstOrDefault(t => t.Id == item.Id);
+            if (track != null) track.Order = item.Order;
+        }
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    [Authorize]
     [HttpDelete("{trackId}")]
     public async Task<IActionResult> Delete(int eventId, int trackId)
     {

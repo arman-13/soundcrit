@@ -247,6 +247,13 @@ export const deleteEventTrack = (eventId: number, trackId: number, token: string
     headers: { Authorization: `Bearer ${token}` },
   });
 
+export const reorderEventTracks = (eventId: number, items: { id: number; order: number }[], token: string) =>
+  fetchApi<void>(`/api/events/${eventId}/tracks/reorder`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+
 export const getEventSync = (eventId: number) =>
   fetchApi<EventSync>(`/api/events/${eventId}/sync`);
 
