@@ -51,18 +51,24 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
   const { token } = useAuth();
   const router = useRouter();
   const [liveEvent, setLiveEvent] = useState<LiveEventDetail | null>(null);
+  const onTrackSubmittedRef = useRef<((p: { trackTitle: string; submitterName: string }) => void) | undefined>(undefined);
 
   const handleEventStarted = useCallback(() => {
     getEvent(initialEvent.id).then((e) => setLiveEvent(e)).catch(() => router.refresh());
   }, [initialEvent.id, router]);
 
-  useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted, undefined);
+  useEventHub(
+    initialEvent.id, token,
+    undefined, undefined, undefined,
+    handleEventStarted,
+    (payload) => onTrackSubmittedRef.current?.(payload),
+  );
 
   if (liveEvent) return <EventLive event={liveEvent} />;
-  return <EventUpcomingInner event={initialEvent} onEventStarted={handleEventStarted} />;
+  return <EventUpcomingInner event={initialEvent} onEventStarted={handleEventStarted} onTrackSubmittedRef={onTrackSubmittedRef} />;
 }
 
-function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail; onEventStarted: () => void }) {
+function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { event: LiveEventDetail; onEventStarted: () => void; onTrackSubmittedRef: React.MutableRefObject<((p: { trackTitle: string; submitterName: string }) => void) | undefined> }) {
   const { user, token } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -85,11 +91,12 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
 
-  useEventHub(
-    event.id, token,
-    undefined, undefined, undefined, undefined,
-    isHost ? (payload) => addToast(`New submission: "${payload.trackTitle}" by ${payload.submitterName}`) : undefined,
-  );
+  useEffect(() => {
+    if (!isHost) return;
+    onTrackSubmittedRef.current = (payload) =>
+      addToast(`New submission: "${payload.trackTitle}" by ${payload.submitterName}`);
+    return () => { onTrackSubmittedRef.current = undefined; };
+  }, [isHost, onTrackSubmittedRef]);
 
   const toLocalDatetimeValue = (iso: string) => {
     const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
