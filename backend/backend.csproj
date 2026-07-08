@@ -19,6 +19,7 @@
     <PackageReference Include="Resend" Version="0.5.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.1" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.9.0" />
+    <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
 
 </Project>

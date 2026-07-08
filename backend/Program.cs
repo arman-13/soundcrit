@@ -52,6 +52,7 @@ builder.Services.AddAuthentication(options =>
 
 // Resend email
 builder.Services.AddOptions();
+builder.Services.AddHttpClient();
 builder.Services.AddHttpClient<ResendClient>();
 builder.Services.Configure<ResendClientOptions>(o => o.ApiToken = builder.Configuration["Resend:ApiKey"]!);
 builder.Services.AddTransient<IResend, ResendClient>();
