@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
-import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack, reorderEventTracks, getEvent } from "@/lib/api";
+import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack, reorderEventTracks, getEvent, updateEvent } from "@/lib/api";
 import { useEventHub } from "@/hooks/useEventHub";
 import { LiveEventDetail, Track, EventTrack } from "@/types";
 import Image from "next/image";
@@ -85,6 +85,31 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
 
+  const toLocalDatetimeValue = (iso: string) => {
+    const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const [editingDate, setEditingDate] = useState(false);
+  const [newDateValue, setNewDateValue] = useState("");
+  const [dateSaving, setDateSaving] = useState(false);
+
+  const handleDateSave = async () => {
+    if (!token || !newDateValue) return;
+    setDateSaving(true);
+    try {
+      const utc = new Date(newDateValue).toISOString();
+      await updateEvent(event.id, { title: event.title, description: event.description ?? undefined, coverImageUrl: event.coverImageUrl ?? undefined, scheduledAt: utc }, token);
+      event.scheduledAt = utc;
+      setEditingDate(false);
+    } catch {
+      alert("Failed to update date.");
+    } finally {
+      setDateSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (!token) return;
     if (isHost) {
@@ -159,6 +184,37 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
       </div>
 
       <BigCountdown scheduledAt={event.scheduledAt} onExpire={onEventStarted} />
+
+      {isHost && (
+        <div className="mb-6">
+          {editingDate ? (
+            <div className="flex items-center justify-center gap-2">
+              <input
+                type="datetime-local"
+                value={newDateValue}
+                onChange={(e) => setNewDateValue(e.target.value)}
+                className="bg-white/5 border border-white/15 rounded px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:border-white/30 transition-colors"
+              />
+              <button
+                onClick={handleDateSave}
+                disabled={dateSaving || !newDateValue}
+                className="text-xs px-3 py-1.5 rounded border border-white/20 text-white/60 hover:border-white/40 transition-colors disabled:opacity-40"
+              >{dateSaving ? "Saving…" : "Save"}</button>
+              <button
+                onClick={() => setEditingDate(false)}
+                className="text-xs text-white/25 hover:text-white/50 transition-colors"
+              >Cancel</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => { setNewDateValue(toLocalDatetimeValue(event.scheduledAt)); setEditingDate(true); }}
+              className="text-xs text-white/25 hover:text-white/50 transition-colors"
+            >
+              Edit date & time
+            </button>
+          )}
+        </div>
+      )}
 
       <p className="text-xs text-white/25 mb-10">
         {event.trackCount} tracks{event.genres?.length > 0 ? ` · ${event.genres.slice(0, 3).join(" · ")}` : ""}

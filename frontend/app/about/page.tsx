@@ -41,7 +41,7 @@ export default async function AboutPage() {
                 <p className="text-sm text-white/45 leading-relaxed mb-4">{member.bio}</p>
                 <div className="flex flex-wrap gap-3">
                   <a href={`mailto:${member.email}`} className="text-xs text-white/30 hover:text-white/60 transition-colors">
-                    ✉ {member.email}
+                    {member.email}
                   </a>
                   {member.phone && (
                     <a href={`tel:${member.phone}`} className="text-xs text-white/30 hover:text-white/60 transition-colors">
@@ -50,12 +50,12 @@ export default async function AboutPage() {
                   )}
                   {member.gitHub && (
                     <a href={member.gitHub} target="_blank" rel="noopener noreferrer" className="text-xs text-white/30 hover:text-white/60 transition-colors">
-                      GitHub ↗
+                      GitHub
                     </a>
                   )}
                   {member.linkedIn && (
                     <a href={member.linkedIn} target="_blank" rel="noopener noreferrer" className="text-xs text-white/30 hover:text-white/60 transition-colors">
-                      LinkedIn ↗
+                      LinkedIn
                     </a>
                   )}
                 </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
+import PasswordInput from "@/components/PasswordInput";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -50,14 +51,18 @@ export default function RegisterPage() {
           {fields.map(({ key, label, type, placeholder }) => (
             <div key={key}>
               <label className="block text-xs tracking-widest uppercase text-white/35 mb-2">{label}</label>
-              <input
-                type={type}
-                value={form[key]}
-                onChange={set(key)}
-                required
-                className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-white/30 transition-colors"
-                placeholder={placeholder}
-              />
+              {type === "password" ? (
+                <PasswordInput value={form[key]} onChange={set(key)} placeholder={placeholder} required />
+              ) : (
+                <input
+                  type={type}
+                  value={form[key]}
+                  onChange={set(key)}
+                  required
+                  className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-white/30 transition-colors"
+                  placeholder={placeholder}
+                />
+              )}
             </div>
           ))}
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { resetPassword } from "@/lib/api";
+import PasswordInput from "@/components/PasswordInput";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -51,25 +52,11 @@ function ResetPasswordForm() {
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <label className="block text-xs tracking-widest uppercase text-white/35 mb-2">New password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-white/30 transition-colors"
-            placeholder="••••••••"
-          />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
         <div>
           <label className="block text-xs tracking-widest uppercase text-white/35 mb-2">Confirm password</label>
-          <input
-            type="password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            required
-            className="w-full bg-white/5 border border-white/10 rounded px-4 py-3 text-sm text-white/80 placeholder-white/20 focus:outline-none focus:border-white/30 transition-colors"
-            placeholder="••••••••"
-          />
+          <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
         </div>
 
         {error && <p className="text-sm text-red-400/80">{error}</p>}
