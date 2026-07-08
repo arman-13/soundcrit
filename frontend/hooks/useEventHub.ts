@@ -79,6 +79,7 @@ export function useEventHub(
     });
 
     builder.on("TrackSubmitted", (payload: { trackTitle: string; submitterName: string }) => {
+      console.log("[SignalR] TrackSubmitted received", payload);
       onTrackSubmittedRef.current?.(payload);
     });
 

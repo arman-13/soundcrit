@@ -92,6 +92,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
   const isApproved = !isHost && requestStatus === "Approved";
 
   useEffect(() => {
+    console.log("[EventUpcoming] isHost:", isHost);
     if (!isHost) return;
     onTrackSubmittedRef.current = (payload) =>
       addToast(`New submission: "${payload.trackTitle}" by ${payload.submitterName}`);
