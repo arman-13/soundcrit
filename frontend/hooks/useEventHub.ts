@@ -26,6 +26,7 @@ export function useEventHub(
   onCountdownStarted?: (seconds: number) => void,
   onTrackChanged?: (track: HubTrack) => void,
   onEventStarted?: () => void,
+  onTrackSubmitted?: (payload: { trackTitle: string; submitterName: string }) => void,
 ) {
   const [eventStatus, setEventStatus] = useState<string | null>(null);
   const [approvedUserId, setApprovedUserId] = useState<string | null>(null);
@@ -38,6 +39,8 @@ export function useEventHub(
   onTrackChangedRef.current = onTrackChanged;
   const onEventStartedRef = useRef(onEventStarted);
   onEventStartedRef.current = onEventStarted;
+  const onTrackSubmittedRef = useRef(onTrackSubmitted);
+  onTrackSubmittedRef.current = onTrackSubmitted;
 
   useEffect(() => {
     const builder = new signalR.HubConnectionBuilder()
@@ -73,6 +76,10 @@ export function useEventHub(
 
     builder.on("RequestApproved", (userId: string) => {
       setApprovedUserId(userId);
+    });
+
+    builder.on("TrackSubmitted", (payload: { trackTitle: string; submitterName: string }) => {
+      onTrackSubmittedRef.current?.(payload);
     });
 
     builder.onreconnected(() => {

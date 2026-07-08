@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/contexts/AuthContext";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
-import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack, reorderEventTracks, getEvent, updateEvent } from "@/lib/api";
+import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack, reorderEventTracks, deleteEventTrack, getEvent, updateEvent } from "@/lib/api";
 import { useEventHub } from "@/hooks/useEventHub";
 import { LiveEventDetail, Track, EventTrack } from "@/types";
 import Image from "next/image";
@@ -56,7 +56,7 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
     getEvent(initialEvent.id).then((e) => setLiveEvent(e)).catch(() => router.refresh());
   }, [initialEvent.id, router]);
 
-  useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted);
+  useEventHub(initialEvent.id, token, undefined, undefined, undefined, handleEventStarted, undefined);
 
   if (liveEvent) return <EventLive event={liveEvent} />;
   return <EventUpcomingInner event={initialEvent} onEventStarted={handleEventStarted} />;
@@ -85,10 +85,24 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
 
+  useEventHub(
+    event.id, token,
+    undefined, undefined, undefined, undefined,
+    isHost ? (payload) => addToast(`New submission: "${payload.trackTitle}" by ${payload.submitterName}`) : undefined,
+  );
+
   const toLocalDatetimeValue = (iso: string) => {
     const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
+  const toastId = useRef(0);
+  const addToast = (message: string) => {
+    const id = ++toastId.current;
+    setToasts((prev) => [...prev, { id, message }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   };
 
   const [editingDate, setEditingDate] = useState(false);
@@ -165,6 +179,15 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-20 text-center">
+      {toasts.length > 0 && (
+        <div className="fixed bottom-24 right-6 z-50 flex flex-col gap-2 items-end">
+          {toasts.map((t) => (
+            <div key={t.id} className="bg-[#1a1a1a] border border-white/10 rounded-lg px-4 py-3 text-sm text-white/70 shadow-xl animate-in fade-in slide-in-from-bottom-2 max-w-xs">
+              {t.message}
+            </div>
+          ))}
+        </div>
+      )}
       {event.coverImageUrl && (
         <div className="relative w-48 h-48 mx-auto rounded-xl overflow-hidden mb-8">
           <Image src={event.coverImageUrl} alt={event.title} fill className="object-cover opacity-60" />
@@ -337,6 +360,7 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
             token={token!}
             onUpdate={(id, status) => setSubmissions((prev) => prev.map((x) => x.id === id ? { ...x, status } : x))}
             onReorder={setSubmissions}
+            onDelete={(id) => setSubmissions((prev) => prev.filter((x) => x.id !== id))}
           />
         </div>
       )}
@@ -344,13 +368,14 @@ function EventUpcomingInner({ event, onEventStarted }: { event: LiveEventDetail;
   );
 }
 
-function TrackSubmissionsList({ submissions, loading, eventId, token, onUpdate, onReorder }: {
+function TrackSubmissionsList({ submissions, loading, eventId, token, onUpdate, onReorder, onDelete }: {
   submissions: EventTrack[];
   loading: boolean;
   eventId: number;
   token: string;
   onUpdate: (id: number, status: string) => void;
   onReorder: (tracks: EventTrack[]) => void;
+  onDelete: (id: number) => void;
 }) {
   const { playTrack, currentTrack, isPlaying, setIsPlaying } = useAudioPlayer();
   const dragId = useRef<number | null>(null);
@@ -431,9 +456,7 @@ function TrackSubmissionsList({ submissions, loading, eventId, token, onUpdate, 
                     <circle cx="9" cy="13" r="1.5"/>
                   </svg>
                 </div>
-              ) : (
-                <div className="w-[12px] shrink-0" />
-              )}
+              ) : null}
               <button
                 onClick={() => handlePlay(t)}
                 className="relative w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5 group"
@@ -464,24 +487,38 @@ function TrackSubmissionsList({ submissions, loading, eventId, token, onUpdate, 
               <span className={`text-xs shrink-0 ${t.status === "Approved" ? "text-green-400/60" : t.status === "Rejected" ? "text-red-400/60" : "text-white/30"}`}>
                 {t.status}
               </span>
-              {t.status === "Pending" && (
-                <div className="flex gap-2 shrink-0">
-                  <button
-                    onClick={async () => {
-                      await updateEventTrack(eventId, t.id, "Approved", i + 1, token);
-                      onUpdate(t.id, "Approved");
-                    }}
-                    className="text-xs px-3 py-1.5 rounded border border-white/20 text-white/60 hover:border-white/40 transition-colors"
-                  >Approve</button>
-                  <button
-                    onClick={async () => {
-                      await updateEventTrack(eventId, t.id, "Rejected", i + 1, token);
-                      onUpdate(t.id, "Rejected");
-                    }}
-                    className="text-xs px-3 py-1.5 rounded border border-white/10 text-white/30 hover:text-red-400/70 transition-colors"
-                  >Reject</button>
-                </div>
-              )}
+              <div className="flex items-center gap-2 shrink-0">
+                {t.status === "Pending" && (
+                  <>
+                    <button
+                      onClick={async () => {
+                        await updateEventTrack(eventId, t.id, "Approved", i + 1, token);
+                        onUpdate(t.id, "Approved");
+                      }}
+                      className="text-xs px-3 py-1.5 rounded border border-white/20 text-white/60 hover:border-white/40 transition-colors"
+                    >Approve</button>
+                    <button
+                      onClick={async () => {
+                        await updateEventTrack(eventId, t.id, "Rejected", i + 1, token);
+                        onUpdate(t.id, "Rejected");
+                      }}
+                      className="text-xs px-3 py-1.5 rounded border border-white/10 text-white/30 hover:text-red-400/70 transition-colors"
+                    >Reject</button>
+                  </>
+                )}
+                <button
+                  onClick={async () => {
+                    await deleteEventTrack(eventId, t.id, token);
+                    onDelete(t.id);
+                  }}
+                  className="text-white/20 hover:text-red-400/70 transition-colors ml-1"
+                  aria-label="Remove track"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                </button>
+              </div>
             </div>
           ))}
         </div>

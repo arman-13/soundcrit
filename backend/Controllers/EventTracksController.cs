@@ -1,9 +1,11 @@
 using System.Security.Claims;
 using Backend.Data;
 using Backend.DTOs;
+using Backend.Hubs;
 using Backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
@@ -13,8 +15,13 @@ namespace Backend.Controllers;
 public class EventTracksController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IHubContext<EventHub> _hub;
 
-    public EventTracksController(AppDbContext db) => _db = db;
+    public EventTracksController(AppDbContext db, IHubContext<EventHub> hub)
+    {
+        _db = db;
+        _hub = hub;
+    }
 
     [Authorize]
     [HttpPost]
@@ -42,6 +49,14 @@ public class EventTracksController : ControllerBase
             SubmittedAt = DateTime.UtcNow
         });
         await _db.SaveChangesAsync();
+
+        var track = await _db.Tracks.FindAsync(body.TrackId);
+        var submitter = await _db.Users.FindAsync(userId);
+        await _hub.Clients.Group($"event-{eventId}").SendAsync("TrackSubmitted", new {
+            TrackTitle = track?.Title ?? "Unknown",
+            SubmitterName = submitter?.DisplayName ?? submitter?.UserName ?? "Someone"
+        });
+
         return Ok();
     }
 
