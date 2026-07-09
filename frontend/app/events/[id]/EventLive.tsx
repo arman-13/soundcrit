@@ -84,6 +84,10 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     approvedTracks[event.playbackState.currentTrackIndex]?.id ?? null
   );
 
+  const commentsEndRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    commentsEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [comments]);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const preloadRef = useRef<HTMLAudioElement | null>(null);
   const trackIndexRef = useRef(trackIndex);
@@ -331,7 +335,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
             </div>
           ))}
           {comments.length === 0 && <p className="text-sm text-white/25">No comments yet.</p>}
-          <div ref={(el) => el?.scrollIntoView()} />
+          <div ref={commentsEndRef} />
         </div>
 
         {user ? (
