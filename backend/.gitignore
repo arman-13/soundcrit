@@ -3,3 +3,4 @@
 *.db-wal
 appsettings.Development.json
 migrations.sql
+appsettings.Development.json
