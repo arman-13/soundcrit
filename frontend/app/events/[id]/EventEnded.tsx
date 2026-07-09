@@ -22,7 +22,7 @@ function toTrack(et: EventTrack): Track {
 
 export default function EventEnded({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { playTrack: globalPlay, currentTrack, isPlaying, setIsPlaying, seekTo, setIsLive } = useAudioPlayer();
+  const { playTrack: globalPlay, currentTrack, isPlaying, setIsPlaying, seekTo, setIsLive, audioRef } = useAudioPlayer();
   const approvedTracks = event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order);
   const [selectedTrack, setSelectedTrack] = useState<EventTrack | null>(approvedTracks[0] ?? null);
   const [comments, setComments] = useState<EventComment[]>([]);
@@ -173,7 +173,22 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
                     <div>
                       <span className="text-sm font-medium text-white/70 mr-2">{c.displayName}</span>
                       {c.trackTimestamp > 0 && (
-                        <button onClick={() => seekTo(c.trackTimestamp)}
+                        <button
+                          onClick={() => {
+                            if (!selectedTrack) return;
+                            const audio = audioRef.current;
+                            if (currentTrack?.id === selectedTrack.trackId) {
+                              seekTo(c.trackTimestamp);
+                            } else {
+                              setIsLive(false);
+                              globalPlay(toTrack(selectedTrack), approvedTracks.map(toTrack));
+                              const onReady = () => {
+                                if (audio) audio.currentTime = c.trackTimestamp;
+                                audio?.removeEventListener("canplay", onReady);
+                              };
+                              audio?.addEventListener("canplay", onReady);
+                            }
+                          }}
                           className="text-xs text-white/35 hover:text-white/70 transition-colors mr-2 font-mono">
                           {fmtTime(c.trackTimestamp)}
                         </button>
