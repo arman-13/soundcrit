@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import AudioPlayer from "@/components/AudioPlayer";
 import { AudioPlayerProvider } from "@/lib/AudioPlayerContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,6 +39,7 @@ export default function RootLayout({
             <AudioPlayer />
           </AudioPlayerProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );
