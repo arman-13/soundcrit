@@ -25,7 +25,7 @@ export default async function HomePage() {
     <div>
       <AutoRefresh intervalMs={15000} />
       {/* Hero */}
-      <section className="flex flex-col items-center justify-center text-center px-6 pt-20 pb-12">
+      <section className="flex flex-col items-center justify-center text-center px-6 pt-14 pb-8">
         <h1 className="text-3xl md:text-5xl font-light tracking-tight text-white/90 leading-tight mb-5">
           Music with a story
         </h1>
@@ -34,7 +34,7 @@ export default async function HomePage() {
         </p>
       </section>
 
-      <div className="max-w-6xl mx-auto px-6 pb-32 space-y-24">
+      <div className="max-w-6xl mx-auto px-6 pb-20 space-y-14">
 
         {/* Events */}
         {(liveEvents.length > 0 || upcomingEvents.length > 0) && (
