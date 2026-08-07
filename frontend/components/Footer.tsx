@@ -8,7 +8,7 @@ export default function Footer() {
         </div>
         <div className="text-sm text-white/40 space-y-1">
           <p>studio@soundcrit.com</p>
-          <a href="/about" className="text-xs text-white/25 hover:text-white/50 transition-colors inline-block">Made by ↗</a>
+          <a href="/about" className="text-xs text-white/25 hover:text-white/50 transition-colors inline-block">Made by the team agamas</a>
         </div>
       </div>
     </footer>
