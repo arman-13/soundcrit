@@ -141,4 +141,18 @@ public class AlbumsController : ControllerBase
         await _db.SaveChangesAsync();
         return NoContent();
     }
+
+    [Authorize]
+    [HttpPut("{id}/tracks/reorder")]
+    public async Task<IActionResult> ReorderTracks(int id, List<ReorderAlbumTrackItem> items)
+    {
+        var albumTracks = await _db.TrackAlbums.Where(ta => ta.AlbumId == id).ToListAsync();
+        foreach (var item in items)
+        {
+            var ta = albumTracks.FirstOrDefault(t => t.TrackId == item.TrackId);
+            if (ta is not null) ta.TrackNumber = item.TrackNumber;
+        }
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 }

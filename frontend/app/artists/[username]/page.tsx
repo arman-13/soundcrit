@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { getArtistProfile, getArtistTracks, getArtistAlbums } from "@/lib/api";
+import { getArtistProfile, getArtistTracks, getArtistAlbums, getArtistEvents } from "@/lib/api";
 import ArtistTracks from "./ArtistTracks";
 import FollowButton from "./FollowButton";
 import { notFound } from "next/navigation";
@@ -12,11 +12,13 @@ export default async function ArtistPage({ params }: { params: Promise<{ usernam
   const name = decodeURIComponent(username);
 
   let profile, tracksRes, albums;
+  let artistEvents: import("@/types").LiveEvent[] = [];
   try {
     profile = await getArtistProfile(name);
-    [tracksRes, albums] = await Promise.all([
+    [tracksRes, albums, artistEvents] = await Promise.all([
       getArtistTracks(profile.id),
       getArtistAlbums(profile.id),
+      getArtistEvents(profile.id),
     ]);
   } catch {
     notFound();
@@ -52,14 +54,47 @@ export default async function ArtistPage({ params }: { params: Promise<{ usernam
         <FollowButton artistId={profile.id} />
       </header>
 
+      {/* Sessions */}
+      {artistEvents.length > 0 && (
+        <section className="mb-20">
+          <h2 className="text-xs tracking-widest uppercase text-white/25 mb-8">Sessions</h2>
+          <div className="space-y-2">
+            {artistEvents.map((ev) => (
+              <Link
+                key={ev.id}
+                href={`/events/${ev.id}`}
+                className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-white/5 transition-colors group"
+              >
+                {ev.coverImageUrl ? (
+                  <div className="relative w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5">
+                    <Image src={ev.coverImageUrl} alt={ev.title} fill className="object-cover opacity-70 group-hover:opacity-90 transition-opacity" />
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded shrink-0 bg-white/5" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white/75 group-hover:text-white transition-colors truncate">{ev.title}</p>
+                  <p className="text-xs text-white/30 mt-0.5">
+                    {new Date(ev.scheduledAt.endsWith("Z") ? ev.scheduledAt : ev.scheduledAt + "Z").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                </div>
+                <span className={`text-xs shrink-0 ${ev.status === "Live" ? "text-red-400/70" : ev.status === "Upcoming" ? "text-white/30" : "text-white/20"}`}>
+                  {ev.status === "Live" ? "Live" : ev.status === "Upcoming" ? "Upcoming" : "Ended"}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Albums */}
       {albums.length > 0 && (
         <section className="mb-20">
           <h2 className="text-xs tracking-widest uppercase text-white/25 mb-8">Albums</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="flex flex-wrap gap-6">
             {albums.map((album) => (
-              <Link key={album.id} href={`/albums/${album.id}`} className="group">
-                <div className="relative aspect-square rounded-lg overflow-hidden bg-white/5 mb-3">
+              <Link key={album.id} href={`/albums/${album.id}`} className="group w-36">
+                <div className="relative aspect-square rounded overflow-hidden bg-white/5 mb-3">
                   {album.coverImageUrl && (
                     <Image
                       src={album.coverImageUrl}

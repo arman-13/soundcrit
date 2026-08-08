@@ -90,7 +90,7 @@ export default async function HomePage() {
         {/* Albums */}
         {albums.length > 0 && (
           <section>
-            <Link href="/music" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Albums</Link>
+            <Link href="/albums" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Albums</Link>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {albums.map((album) => (
                 <Link key={album.id} href={`/albums/${album.id}`} className="group shrink-0 w-36">
@@ -117,7 +117,7 @@ export default async function HomePage() {
         {/* Charted */}
         {top5.length > 0 && (
           <section>
-            <Link href="/music" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Charted</Link>
+            <Link href="/charted" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Charted</Link>
             <ChartedList tracks={top5} />
           </section>
         )}

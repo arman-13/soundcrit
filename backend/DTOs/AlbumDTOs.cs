@@ -35,3 +35,5 @@ public record AlbumTrackDto(
 );
 
 public record AddTrackToAlbumRequest(int TrackId, int TrackNumber);
+
+public record ReorderAlbumTrackItem(int TrackId, int TrackNumber);

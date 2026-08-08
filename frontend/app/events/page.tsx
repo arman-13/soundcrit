@@ -6,6 +6,7 @@ import Image from "next/image";
 import EventCountdown from "./EventCountdown";
 import AutoRefresh from "@/components/AutoRefresh";
 import EventCardCover from "@/components/EventCardCover";
+import BackButton from "@/components/BackButton";
 
 export default async function EventsPage() {
   let events: import("@/types").LiveEvent[] = [];
@@ -18,6 +19,7 @@ export default async function EventsPage() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-20">
       <AutoRefresh intervalMs={15000} />
+      <BackButton />
       <div className="mb-12">
         <p className="text-xs tracking-widest uppercase text-white/30 mb-4">Sessions</p>
         <h1 className="text-3xl font-light text-white/90">Events</h1>

@@ -100,6 +100,13 @@ export const addTrackToAlbum = (albumId: number, trackId: number, trackNumber: n
     body: JSON.stringify({ trackId, trackNumber }),
   });
 
+export const reorderAlbumTracks = (albumId: number, items: { trackId: number; trackNumber: number }[], token: string) =>
+  fetch(`${API_URL}/api/albums/${albumId}/tracks/reorder`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(items),
+  });
+
 export const removeTrackFromAlbum = (albumId: number, trackId: number, token: string) =>
   fetch(`${API_URL}/api/albums/${albumId}/tracks/${trackId}`, {
     method: "DELETE",
@@ -115,6 +122,9 @@ export const getArtistTracks = (artist: string) =>
 
 export const getArtistAlbums = (artist: string) =>
   fetchApi<Album[]>(`/api/albums?artist=${encodeURIComponent(artist)}`);
+
+export const getArtistEvents = (userId: string) =>
+  fetchApi<LiveEvent[]>(`/api/events/by-user/${encodeURIComponent(userId)}`);
 
 // ── Comments ─────────────────────────────────────────────────────────────────
 export const getComments = (trackId: number) =>

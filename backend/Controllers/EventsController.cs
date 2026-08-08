@@ -78,6 +78,26 @@ public class EventsController : ControllerBase
             approvedTracks.Count, genres!, result.Tracks, playback));
     }
 
+    [HttpGet("by-user/{userId}")]
+    public async Task<ActionResult<IEnumerable<EventSummaryDto>>> GetByUser(string userId)
+    {
+        var events = await _db.Events
+            .Where(e => e.EventTracks.Any(t => t.UserId == userId && t.Status == "Approved"))
+            .OrderByDescending(e => e.ScheduledAt)
+            .Select(e => new EventSummaryDto(
+                e.Id, e.Title, e.Description, e.CoverImageUrl, e.ScheduledAt, e.Status, e.HostId,
+                e.EventTracks.Count(t => t.Status == "Approved"),
+                e.EventTracks
+                    .Where(t => t.Status == "Approved" && t.Track.Genre != null && t.Track.Genre != "")
+                    .Select(t => t.Track.Genre!)
+                    .Distinct()
+                    .ToList()
+            ))
+            .ToListAsync();
+
+        return Ok(events);
+    }
+
     [Authorize]
     [HttpPost]
     public async Task<ActionResult> Create(CreateEventRequest req)

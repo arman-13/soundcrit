@@ -6,9 +6,9 @@ import { useEffect, useState, useCallback, useRef, Suspense } from "react";
 import {
   getAllTracksAdmin, deleteTrack, updateTrack,
   getMyAlbums, createAlbum, updateAlbum, deleteAlbum,
-  createTrack, addTrackToAlbum,
+  createTrack, addTrackToAlbum, getAlbum, removeTrackFromAlbum, reorderAlbumTracks,
 } from "@/lib/api";
-import { Album, Track } from "@/types";
+import { Album, AlbumTrackDto, Track } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
 import StoryBlockEditor from "./StoryBlockEditor";
@@ -82,11 +82,9 @@ function MyMusicPageInner() {
     <div className="min-h-screen flex">
       {/* Sidebar */}
       <aside className="w-52 shrink-0 border-r border-white/8 pt-12 px-4 flex flex-col gap-1">
-        {(["tracks", "albums", "upload", "create-album"] as const).map((v) => {
-          const labels: Record<string, string> = {
-            tracks: "My Tracks", albums: "My Albums",
-            upload: "Upload Track", "create-album": "Create Album",
-          };
+        <p className="text-[10px] tracking-widest uppercase text-white/20 px-3 mb-1">Library</p>
+        {(["tracks", "albums"] as const).map((v) => {
+          const labels: Record<string, string> = { tracks: "My Tracks", albums: "My Albums" };
           return (
             <button
               key={v}
@@ -99,6 +97,30 @@ function MyMusicPageInner() {
             </button>
           );
         })}
+        <div className="my-3 border-t border-white/8" />
+        <p className="text-[10px] tracking-widest uppercase text-white/20 px-3 mb-1">Upload</p>
+        <button
+          onClick={() => setView("upload")}
+          className={`text-left text-sm px-3 py-2 rounded transition-colors flex items-center gap-2 ${
+            view === "upload" ? "bg-white/8 text-white" : "text-white/50 hover:text-white/80 hover:bg-white/5"
+          }`}
+        >
+          <span className={`flex items-center justify-center w-5 h-5 rounded border text-xs font-medium shrink-0 transition-colors ${
+            view === "upload" ? "border-white/40 text-white" : "border-white/20 text-white/40"
+          }`}>↑</span>
+          Upload Track
+        </button>
+        <button
+          onClick={() => setView("create-album")}
+          className={`text-left text-sm px-3 py-2 rounded transition-colors flex items-center gap-2 ${
+            view === "create-album" ? "bg-white/8 text-white" : "text-white/50 hover:text-white/80 hover:bg-white/5"
+          }`}
+        >
+          <span className={`flex items-center justify-center w-5 h-5 rounded border text-xs font-medium shrink-0 transition-colors ${
+            view === "create-album" ? "border-white/40 text-white" : "border-white/20 text-white/40"
+          }`}>+</span>
+          Create Album
+        </button>
         <div className="mt-auto mb-8">
           <Link href="/profile" className="text-sm px-3 py-2 text-white/30 hover:text-white/60 transition-colors block">
             My Profile
@@ -277,9 +299,9 @@ function AlbumsView({ albums, tracks, token, onEdit, onDelete, onCreate, onRefre
       {albums.length === 0 ? (
         <p className="text-white/30 text-sm">No albums yet.</p>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="flex flex-wrap gap-6">
           {albums.map((a) => (
-            <div key={a.id} className="group">
+            <div key={a.id} className="group w-36">
               <div className="relative aspect-square rounded overflow-hidden mb-3 bg-white/5">
                 {a.coverImageUrl && <Image src={a.coverImageUrl} alt={a.title} fill className="object-cover opacity-70" />}
               </div>
@@ -419,21 +441,30 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
           </div>
         </div>
 
-        {/* Audio upload */}
+        {/* Audio */}
         <div>
           <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Audio File</label>
-          <input ref={audioRef} type="file" accept=".mp3,.wav,.flac,audio/*" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "audio"); }} />
-          <button type="button"
-            onClick={() => audioRef.current?.click()}
-            disabled={uploading.audio}
-            className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50">
-            {uploading.audio ? "Uploading…" : "Choose audio file (.mp3, .wav, .flac)…"}
-          </button>
-          {form.audioUrl && (
-            <div className="mt-2">
-              <audio controls src={form.audioUrl} className="w-full h-8 opacity-70" />
+          {initial ? (
+            <div className="mt-1">
+              <audio controls src={form.audioUrl as string} className="w-full h-8 opacity-50" />
+              <p className="text-xs text-white/20 mt-1.5">Audio cannot be changed after upload.</p>
             </div>
+          ) : (
+            <>
+              <input ref={audioRef} type="file" accept=".mp3,.wav,.flac,audio/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "audio"); }} />
+              <button type="button"
+                onClick={() => audioRef.current?.click()}
+                disabled={uploading.audio}
+                className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50">
+                {uploading.audio ? "Uploading…" : "Choose audio file (.mp3, .wav, .flac)…"}
+              </button>
+              {form.audioUrl && (
+                <div className="mt-2">
+                  <audio controls src={form.audioUrl as string} className="w-full h-8 opacity-70" />
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -498,6 +529,13 @@ function AlbumForm({ initial, onSubmit, busy, onCancel }: {
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const coverRef = useRef<HTMLInputElement>(null);
+  const [albumTracks, setAlbumTracks] = useState<AlbumTrackDto[]>([]);
+  const dragIndex = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!initial?.id || !token) return;
+    getAlbum(initial.id).then((a) => setAlbumTracks([...a.tracks].sort((x, y) => x.trackNumber - y.trackNumber)));
+  }, [initial?.id, token]);
 
   const set = (f: keyof Album) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((p) => ({ ...p, [f]: e.target.value }));
@@ -514,6 +552,24 @@ function AlbumForm({ initial, onSubmit, busy, onCancel }: {
     } finally {
       setUploadingCover(false);
     }
+  };
+
+  const handleDrop = async (overIndex: number) => {
+    if (dragIndex.current === null || dragIndex.current === overIndex) return;
+    const reordered = [...albumTracks];
+    const [moved] = reordered.splice(dragIndex.current, 1);
+    reordered.splice(overIndex, 0, moved);
+    const withNumbers = reordered.map((t, i) => ({ ...t, trackNumber: i + 1 }));
+    setAlbumTracks(withNumbers);
+    dragIndex.current = null;
+    if (!initial?.id || !token) return;
+    await reorderAlbumTracks(initial.id, withNumbers.map((t) => ({ trackId: t.trackId, trackNumber: t.trackNumber })), token);
+  };
+
+  const handleRemoveTrack = async (trackId: number) => {
+    if (!initial?.id || !token) return;
+    await removeTrackFromAlbum(initial.id, trackId, token);
+    setAlbumTracks((prev) => prev.filter((t) => t.trackId !== trackId).map((t, i) => ({ ...t, trackNumber: i + 1 })));
   };
 
   return (
@@ -549,6 +605,45 @@ function AlbumForm({ initial, onSubmit, busy, onCancel }: {
           </div>
           {uploadError && <p className="text-red-400/80 text-sm mt-1">{uploadError}</p>}
         </div>
+        {/* Track list — only shown when editing */}
+        {initial && albumTracks.length > 0 && (
+          <div className="pt-2 pb-2 border-t border-white/8">
+            <p className="text-xs tracking-widest uppercase text-white/30 mb-4 pt-4">Tracks</p>
+            <div className="space-y-1">
+              {albumTracks.map((t, i) => (
+                <div
+                  key={t.trackId}
+                  draggable
+                  onDragStart={() => { dragIndex.current = i; }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => handleDrop(i)}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 group cursor-grab active:cursor-grabbing"
+                >
+                  <svg className="w-3.5 h-3.5 text-white/20 group-hover:text-white/40 shrink-0" viewBox="0 0 16 16" fill="currentColor">
+                    <rect x="3" y="3" width="2" height="2" rx="1"/><rect x="3" y="7" width="2" height="2" rx="1"/><rect x="3" y="11" width="2" height="2" rx="1"/>
+                    <rect x="7" y="3" width="2" height="2" rx="1"/><rect x="7" y="7" width="2" height="2" rx="1"/><rect x="7" y="11" width="2" height="2" rx="1"/>
+                    <rect x="11" y="3" width="2" height="2" rx="1"/><rect x="11" y="7" width="2" height="2" rx="1"/><rect x="11" y="11" width="2" height="2" rx="1"/>
+                  </svg>
+                  <span className="w-5 text-xs text-white/25 text-right shrink-0">{t.trackNumber}</span>
+                  <div className="relative w-8 h-8 rounded overflow-hidden shrink-0 bg-white/5">
+                    {t.coverImageUrl && <Image src={t.coverImageUrl} alt={t.title} fill className="object-cover opacity-70" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-white/75 truncate">{t.title}</p>
+                    <p className="text-xs text-white/30">{t.artist}</p>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveTrack(t.trackId)}
+                    className="text-xs text-red-400/40 hover:text-red-400/80 transition-colors shrink-0 opacity-0 group-hover:opacity-100"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div>
           <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Description</label>
           <textarea value={form.description ?? ""} onChange={set("description")} rows={3}
