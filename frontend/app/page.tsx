@@ -40,8 +40,8 @@ export default async function HomePage() {
         {(liveEvents.length > 0 || upcomingEvents.length > 0) && (
           <section>
             <div className="flex items-baseline justify-between mb-8">
-              <Link href="/events" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors">Sessions</Link>
-              <Link href="/events" className="text-xs text-white/35 hover:text-white/70 transition-colors">
+              <Link href="/events?from=home" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors">Sessions</Link>
+              <Link href="/events?from=home" className="text-xs text-white/35 hover:text-white/70 transition-colors">
                 See all →
               </Link>
             </div>
@@ -73,8 +73,8 @@ export default async function HomePage() {
         {/* New Releases */}
         <section id="new-releases">
           <div className="flex items-baseline justify-between mb-8">
-            <Link href="/music" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors">New Releases</Link>
-            <Link href="/music" className="text-xs text-white/35 hover:text-white/70 transition-colors">
+            <Link href="/music?from=home" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors">New Releases</Link>
+            <Link href="/music?from=home" className="text-xs text-white/35 hover:text-white/70 transition-colors">
               See all →
             </Link>
           </div>
@@ -90,7 +90,7 @@ export default async function HomePage() {
         {/* Albums */}
         {albums.length > 0 && (
           <section>
-            <Link href="/albums" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Albums</Link>
+            <Link href="/albums?from=home" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Albums</Link>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {albums.map((album) => (
                 <Link key={album.id} href={`/albums/${album.id}`} className="group shrink-0 w-36">
@@ -117,7 +117,7 @@ export default async function HomePage() {
         {/* Charted */}
         {top5.length > 0 && (
           <section>
-            <Link href="/charted" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Charted</Link>
+            <Link href="/charted?from=home" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Charted</Link>
             <ChartedList tracks={top5} />
           </section>
         )}

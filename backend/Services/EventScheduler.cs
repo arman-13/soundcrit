@@ -11,18 +11,27 @@ public class EventScheduler : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<EventHub> _hub;
+    private readonly ILogger<EventScheduler> _logger;
 
-    public EventScheduler(IServiceScopeFactory scopeFactory, IHubContext<EventHub> hub)
+    public EventScheduler(IServiceScopeFactory scopeFactory, IHubContext<EventHub> hub, ILogger<EventScheduler> logger)
     {
         _scopeFactory = scopeFactory;
         _hub = hub;
+        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await Tick();
+            try
+            {
+                await Tick();
+            }
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex, "EventScheduler tick failed, will retry next interval");
+            }
             await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
         }
     }

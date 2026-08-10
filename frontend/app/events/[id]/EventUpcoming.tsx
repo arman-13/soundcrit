@@ -8,6 +8,21 @@ import { LiveEventDetail, Track, EventTrack } from "@/types";
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
+
+async function uploadImage(file: File, token: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_URL}/api/upload/image`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
+  const { url } = await res.json();
+  return url;
+}
 import { useRouter, useSearchParams } from "next/navigation";
 import EventLive from "./EventLive";
 
@@ -116,6 +131,24 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
   const [editingDate, setEditingDate] = useState(false);
   const [newDateValue, setNewDateValue] = useState("");
   const [dateSaving, setDateSaving] = useState(false);
+  const [coverUrl, setCoverUrl] = useState(event.coverImageUrl ?? "");
+  const [coverUploading, setCoverUploading] = useState(false);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCoverChange = async (file: File) => {
+    if (!token) return;
+    setCoverUploading(true);
+    try {
+      const url = await uploadImage(file, token);
+      await updateEvent(event.id, { title: event.title, description: event.description ?? undefined, coverImageUrl: url, scheduledAt: event.scheduledAt }, token);
+      setCoverUrl(url);
+      event.coverImageUrl = url;
+    } catch {
+      alert("Failed to update cover image.");
+    } finally {
+      setCoverUploading(false);
+    }
+  };
 
   const handleDateSave = async () => {
     if (!token || !newDateValue) return;
@@ -196,9 +229,40 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
           ))}
         </div>
       )}
-      {event.coverImageUrl && (
-        <div className="relative w-48 h-48 mx-auto rounded-xl overflow-hidden mb-8">
-          <Image src={event.coverImageUrl} alt={event.title} fill className="object-cover opacity-60" />
+      {(coverUrl || isHost) && (
+        <div className="relative w-48 h-48 mx-auto rounded-xl overflow-hidden mb-8 group">
+          {coverUrl
+            ? <Image src={coverUrl} alt={event.title} fill className="object-cover opacity-60" />
+            : <div className="absolute inset-0 bg-white/5" />
+          }
+          {isHost && (
+            <>
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverChange(f); }}
+              />
+              <button
+                onClick={() => coverInputRef.current?.click()}
+                disabled={coverUploading}
+                className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-wait"
+              >
+                {coverUploading ? (
+                  <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4-4m0 0l4-4m-4 4h12M4 20h16" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12" />
+                    </svg>
+                    <span className="text-xs text-white/60">Change cover</span>
+                  </>
+                )}
+              </button>
+            </>
+          )}
         </div>
       )}
       <p className="text-xs tracking-widest uppercase text-white/30 mb-3">Upcoming Session</p>

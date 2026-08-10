@@ -27,37 +27,92 @@ export default async function ArtistPage({ params }: { params: Promise<{ usernam
   const tracks = tracksRes.data;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-20">
+    <div>
 
-      {/* Artist header */}
-      <header className="flex flex-col items-center text-center mb-20">
-        {/* Avatar */}
-        <div className="relative w-24 h-24 rounded-full overflow-hidden bg-white/5 mb-6 ring-1 ring-white/10">
-          {profile.avatarUrl ? (
-            <Image src={profile.avatarUrl} alt={profile.displayName} fill className="object-cover" priority />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center text-white/20 text-3xl font-light select-none">
-              {profile.displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
-
-        <h1 className="text-3xl md:text-4xl font-light text-white/90 tracking-tight mb-1">
-          {profile.displayName}
-        </h1>
-        <p className="text-sm text-white/30 mb-5">@{profile.username}</p>
-
-        {profile.bio && (
-          <p className="text-sm text-white/45 leading-relaxed max-w-sm mb-6">{profile.bio}</p>
+      {/* Artist hero — bleeds behind sticky nav */}
+      <header className="relative w-full h-72 md:h-96 mb-10 -mt-16" style={{ background: "linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)" }}>
+        {/* Photo */}
+        {profile.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={profile.avatarUrl}
+            alt={profile.displayName}
+            className="absolute inset-0 w-full h-full object-cover object-center"
+          />
+        ) : (
+          <span className="absolute bottom-4 left-4 text-white/[0.04] text-[14rem] font-light leading-none select-none pointer-events-none">
+            {profile.displayName.charAt(0).toUpperCase()}
+          </span>
         )}
 
-        <FollowButton artistId={profile.id} />
+        {/* Gradient overlay — always present */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "linear-gradient(to bottom, rgba(10,10,10,0.5) 0%, rgba(10,10,10,0.1) 35%, rgba(10,10,10,0.2) 50%, rgba(10,10,10,0.85) 78%, #0a0a0a 100%)" }}
+        />
+
+        {/* Artist name pinned to the bottom */}
+        <div className={`absolute left-0 right-0 pb-6 ${profile.avatarUrl ? "bottom-0" : "bottom-0 pt-24"}`}>
+          <div className="max-w-3xl mx-auto px-6">
+            <h1 className="text-4xl md:text-5xl font-light text-white/90 tracking-tight mb-1">
+              {profile.displayName}
+            </h1>
+            <p className="text-sm text-white/40">@{profile.username}</p>
+          </div>
+        </div>
       </header>
+
+      <div className="max-w-3xl mx-auto px-6">
+        {/* Bio + follow below the hero */}
+        {(profile.bio) && (
+          <p className="text-sm text-white/45 leading-relaxed mb-4 max-w-md">{profile.bio}</p>
+        )}
+        <div className="mb-10">
+          <FollowButton artistId={profile.id} />
+        </div>
+
+      {/* Tracks */}
+      {tracks.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-xs tracking-widest uppercase text-white/25 mb-4">Top Songs</h2>
+          <ArtistTracks tracks={tracks} />
+        </section>
+      )}
+
+      {/* Albums */}
+      {albums.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-xs tracking-widest uppercase text-white/25 mb-5">Albums</h2>
+          <div className="flex flex-wrap gap-6">
+            {albums.map((album) => (
+              <Link key={album.id} href={`/albums/${album.id}`} className="group w-36">
+                <div className="relative aspect-square rounded overflow-hidden bg-white/5 mb-3">
+                  {album.coverImageUrl && (
+                    <Image
+                      src={album.coverImageUrl}
+                      alt={album.title}
+                      fill
+                      className="object-cover opacity-70 group-hover:opacity-90 transition-opacity"
+                    />
+                  )}
+                </div>
+                <p className="text-sm text-white/75 group-hover:text-white transition-colors truncate">
+                  {album.title}
+                </p>
+                <p className="text-xs text-white/30 mt-0.5">
+                  {new Date(album.releasedAt).getFullYear()}
+                  {album.trackCount != null ? ` · ${album.trackCount} tracks` : ""}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Sessions */}
       {artistEvents.length > 0 && (
-        <section className="mb-20">
-          <h2 className="text-xs tracking-widest uppercase text-white/25 mb-8">Sessions</h2>
+        <section className="mb-12">
+          <h2 className="text-xs tracking-widest uppercase text-white/25 mb-4">Sessions</h2>
           <div className="space-y-2">
             {artistEvents.map((ev) => (
               <Link
@@ -87,42 +142,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ usernam
         </section>
       )}
 
-      {/* Albums */}
-      {albums.length > 0 && (
-        <section className="mb-20">
-          <h2 className="text-xs tracking-widest uppercase text-white/25 mb-8">Albums</h2>
-          <div className="flex flex-wrap gap-6">
-            {albums.map((album) => (
-              <Link key={album.id} href={`/albums/${album.id}`} className="group w-36">
-                <div className="relative aspect-square rounded overflow-hidden bg-white/5 mb-3">
-                  {album.coverImageUrl && (
-                    <Image
-                      src={album.coverImageUrl}
-                      alt={album.title}
-                      fill
-                      className="object-cover opacity-70 group-hover:opacity-90 transition-opacity"
-                    />
-                  )}
-                </div>
-                <p className="text-sm text-white/75 group-hover:text-white transition-colors truncate">
-                  {album.title}
-                </p>
-                <p className="text-xs text-white/30 mt-0.5">
-                  {new Date(album.releasedAt).getFullYear()}
-                  {album.trackCount != null ? ` · ${album.trackCount} tracks` : ""}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Tracks */}
-      <section>
-        <h2 className="text-xs tracking-widest uppercase text-white/25 mb-8">Tracks</h2>
-        <ArtistTracks tracks={tracks} />
-      </section>
-
+      </div>
     </div>
   );
 }
