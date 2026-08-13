@@ -63,6 +63,10 @@ public record UpdateEventTrackBody(string Status, int Order);
 public record ReorderEventTracksBody(List<ReorderItem> Items);
 public record ReorderItem(int Id, int Order);
 
+public record SuggestedArtistDto(
+    string Id, string Username, string DisplayName, string? AvatarUrl, string? Bio, int MutualFollowerCount
+);
+
 public record EventCommentDto(
     int Id, int EventTrackId, string UserId, string DisplayName,
     string Content, int TrackTimestamp, DateTime CreatedAt, bool IsAnonymous

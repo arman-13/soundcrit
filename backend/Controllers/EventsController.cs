@@ -42,6 +42,37 @@ public class EventsController : ControllerBase
         return Ok(events);
     }
 
+    [Authorize]
+    [HttpGet("for-you")]
+    public async Task<ActionResult<IEnumerable<EventSummaryDto>>> GetForYou()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var followedIds = await _db.Follows
+            .Where(f => f.FollowerId == userId)
+            .Select(f => f.FolloweeId)
+            .ToListAsync();
+
+        if (followedIds.Count == 0) return Ok(new List<EventSummaryDto>());
+
+        var events = await _db.Events
+            .Where(e => (e.Status == "Live" || e.Status == "Upcoming") &&
+                (followedIds.Contains(e.HostId) || e.EventTracks.Any(t => followedIds.Contains(t.UserId))))
+            .OrderBy(e => e.Status == "Live" ? 0 : 1)
+            .ThenBy(e => e.ScheduledAt)
+            .Select(e => new EventSummaryDto(
+                e.Id, e.Title, e.Description, e.CoverImageUrl, e.ScheduledAt, e.Status, e.HostId,
+                e.EventTracks.Count(t => t.Status == "Approved"),
+                e.EventTracks
+                    .Where(t => t.Status == "Approved" && t.Track.Genre != null && t.Track.Genre != "")
+                    .Select(t => t.Track.Genre!)
+                    .Distinct()
+                    .ToList()
+            ))
+            .ToListAsync();
+
+        return Ok(events);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<EventDetailDto>> GetById(int id)
     {

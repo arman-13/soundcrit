@@ -51,6 +51,30 @@ public class TracksController : ControllerBase
         return Ok(new PagedResponse<Track> { Data = data, TotalCount = total, Page = page, PageSize = pageSize });
     }
 
+    [Authorize]
+    [HttpGet("following")]
+    public async Task<ActionResult<PagedResponse<Track>>> GetFollowing(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var followedIds = await _db.Follows
+            .Where(f => f.FollowerId == userId)
+            .Select(f => f.FolloweeId)
+            .ToListAsync();
+
+        if (followedIds.Count == 0)
+            return Ok(new PagedResponse<Track> { Data = [], TotalCount = 0, Page = page, PageSize = pageSize });
+
+        var query = _db.Tracks
+            .Where(t => t.IsPublished && t.ArtistId != null && followedIds.Contains(t.ArtistId))
+            .OrderByDescending(t => t.PublishedAt);
+
+        var total = await query.CountAsync();
+        var data = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+        return Ok(new PagedResponse<Track> { Data = data, TotalCount = total, Page = page, PageSize = pageSize });
+    }
+
     [HttpGet("charted")]
     public async Task<ActionResult<IEnumerable<Track>>> GetCharted()
     {
