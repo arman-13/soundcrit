@@ -16,18 +16,46 @@ public class FollowController : ControllerBase
 
     public FollowController(AppDbContext db) => _db = db;
 
-    [Authorize]
     [HttpGet("/api/artists/suggested")]
     public async Task<ActionResult<IEnumerable<SuggestedArtistDto>>> GetSuggestedArtists([FromQuery] int take = 10)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var personalized = userId is null ? [] : await GetPersonalizedSuggestions(userId, take);
+        if (personalized.Count > 0) return Ok(personalized);
 
+        // Fallback: no follow graph to work with (logged out, or too new to have peers) —
+        // surface artists with recently published work instead, excluding the current user.
+        var recentArtistIds = await _db.Tracks
+            .Where(t => t.IsPublished && t.ArtistId != null && t.ArtistId != userId)
+            .GroupBy(t => t.ArtistId)
+            .OrderByDescending(g => g.Max(t => t.PublishedAt))
+            .Select(g => g.Key!)
+            .Take(take)
+            .ToListAsync();
+
+        var recentUsers = await _db.Users
+            .Where(u => recentArtistIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id);
+
+        var fallback = recentArtistIds
+            .Where(recentUsers.ContainsKey)
+            .Select(id => new SuggestedArtistDto(
+                recentUsers[id].Id, recentUsers[id].UserName!, recentUsers[id].DisplayName,
+                recentUsers[id].AvatarUrl, recentUsers[id].Bio, 0
+            ))
+            .ToList();
+
+        return Ok(fallback);
+    }
+
+    private async Task<List<SuggestedArtistDto>> GetPersonalizedSuggestions(string userId, int take)
+    {
         var myFollows = await _db.Follows
             .Where(f => f.FollowerId == userId)
             .Select(f => f.FolloweeId)
             .ToListAsync();
 
-        if (myFollows.Count == 0) return Ok(new List<SuggestedArtistDto>());
+        if (myFollows.Count == 0) return [];
 
         // People who also follow at least one artist I follow — my "peers"
         var peerIds = await _db.Follows
@@ -36,7 +64,7 @@ public class FollowController : ControllerBase
             .Distinct()
             .ToListAsync();
 
-        if (peerIds.Count == 0) return Ok(new List<SuggestedArtistDto>());
+        if (peerIds.Count == 0) return [];
 
         // Artists my peers follow that I don't already follow — ranked by how many peers follow them
         var ranked = await _db.Follows
@@ -58,15 +86,13 @@ public class FollowController : ControllerBase
             .Where(u => artistIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id);
 
-        var result = ranked
+        return ranked
             .Where(r => users.ContainsKey(r.UserId))
             .Select(r => new SuggestedArtistDto(
                 users[r.UserId].Id, users[r.UserId].UserName!, users[r.UserId].DisplayName,
                 users[r.UserId].AvatarUrl, users[r.UserId].Bio, r.MutualCount
             ))
             .ToList();
-
-        return Ok(result);
     }
 
     [HttpGet("/api/users/{userId}/followers")]
