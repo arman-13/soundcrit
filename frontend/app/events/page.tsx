@@ -2,8 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { getEvents } from "@/lib/api";
 import Link from "next/link";
-import Image from "next/image";
 import EventCountdown from "./EventCountdown";
+import EventTimeLabel from "@/components/EventTimeLabel";
 import AutoRefresh from "@/components/AutoRefresh";
 import EventCardCover from "@/components/EventCardCover";
 import BackButton from "@/components/BackButton";
@@ -69,23 +69,6 @@ export default async function EventsPage() {
       )}
     </div>
   );
-}
-
-function EventTimeLabel({ scheduledAt, status }: { scheduledAt: string; status: string }) {
-  if (status === "Live") return (
-    <span className="flex items-center gap-1.5 text-xs font-medium text-red-400/70 shrink-0">
-      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Live
-    </span>
-  );
-  const date = new Date(scheduledAt.endsWith("Z") ? scheduledAt : scheduledAt + "Z");
-  const diffDays = (date.getTime() - Date.now()) / 86400000;
-  if (status === "Ended") return <span className="text-xs font-medium text-white/15 shrink-0">Ended</span>;
-  if (diffDays < 1/48) return <span className="text-xs font-medium text-yellow-400/60 shrink-0 animate-pulse">Starting Soon</span>;
-  if (diffDays < 1)  return <span className="text-xs font-medium text-yellow-400/40 shrink-0">Today</span>;
-  if (diffDays < 2)  return <span className="text-xs font-medium text-amber-400/40 shrink-0">Tomorrow</span>;
-  if (diffDays < 7)  return <span className="text-xs font-medium text-orange-400/35 shrink-0">This Week</span>;
-  if (diffDays < 31) return <span className="text-xs font-medium text-orange-600/35 shrink-0">This Month</span>;
-  return <span className="text-xs font-medium text-white/40 shrink-0">Upcoming</span>;
 }
 
 function EventCard({ event }: { event: import("@/types").LiveEvent }) {

@@ -31,18 +31,26 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Load the comment thread for whichever track is selected. Keyed on the
+  // selected id so a slow response for a previously-selected track can never
+  // land on top of the current one.
   useEffect(() => {
-    if (approvedTracks[0]) selectTrack(approvedTracks[0]);
-  }, []);
+    if (!selectedTrack) return;
+    if (loadedTrackId === selectedTrack.id) return;
+    let cancelled = false;
+    const trackId = selectedTrack.id;
+    getEventComments(event.id, trackId)
+      .then((c) => {
+        if (cancelled) return;
+        setComments(c);
+        setLoadedTrackId(trackId);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [event.id, selectedTrack, loadedTrackId]);
 
-  const selectTrack = async (track: EventTrack) => {
+  const selectTrack = (track: EventTrack) => {
     setSelectedTrack(track);
-    if (loadedTrackId === track.id) return;
-    try {
-      const c = await getEventComments(event.id, track.id);
-      setComments(c);
-      setLoadedTrackId(track.id);
-    } catch {}
   };
 
   const playTrack = (track: EventTrack) => {

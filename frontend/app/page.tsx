@@ -5,6 +5,7 @@ import TrackCard from "@/components/TrackCard";
 import ChartedRow from "@/components/ChartedRow";
 import AutoRefresh from "@/components/AutoRefresh";
 import EventCardCover from "@/components/EventCardCover";
+import EventTimeLabel from "@/components/EventTimeLabel";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -58,7 +59,7 @@ export default async function HomePage() {
                   <div className="px-4 py-4">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-medium text-white/80 truncate group-hover:text-white transition-colors">{ev.title}</p>
-                      <EventTimeLabel scheduledAt={ev.scheduledAt} status={ev.status} />
+                      <EventTimeLabel scheduledAt={ev.scheduledAt} status={ev.status} className="ml-2" />
                     </div>
                     <p className="text-xs text-white/30">
                       {new Date(ev.scheduledAt.endsWith("Z") ? ev.scheduledAt : ev.scheduledAt + "Z").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -126,23 +127,6 @@ export default async function HomePage() {
       </div>
     </div>
   );
-}
-
-function EventTimeLabel({ scheduledAt, status }: { scheduledAt: string; status: string }) {
-  if (status === "Live") return (
-    <span className="flex items-center gap-1.5 text-xs font-medium text-red-400/80 shrink-0 ml-2">
-      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />Live
-    </span>
-  );
-  if (status === "Ended") return <span className="text-xs font-medium text-white/15 shrink-0 ml-2">Ended</span>;
-  const date = new Date(scheduledAt.endsWith("Z") ? scheduledAt : scheduledAt + "Z");
-  const diffDays = (date.getTime() - Date.now()) / 86400000;
-  if (diffDays < 1/48) return <span className="text-xs font-medium text-yellow-400/60 shrink-0 ml-2 animate-pulse">Starting Soon</span>;
-  if (diffDays < 1)  return <span className="text-xs font-medium text-yellow-400/40 shrink-0 ml-2">Today</span>;
-  if (diffDays < 2)  return <span className="text-xs font-medium text-amber-400/40 shrink-0 ml-2">Tomorrow</span>;
-  if (diffDays < 7)  return <span className="text-xs font-medium text-orange-400/35 shrink-0 ml-2">This Week</span>;
-  if (diffDays < 31) return <span className="text-xs font-medium text-orange-600/35 shrink-0 ml-2">This Month</span>;
-  return <span className="text-xs font-medium text-white/40 shrink-0 ml-2">Upcoming</span>;
 }
 
 // Server-renderable wrapper — actual play interaction is in the client component

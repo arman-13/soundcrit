@@ -48,9 +48,15 @@ export default function ProfilePage() {
     if (!loading && !user) router.push("/login");
   }, [user, loading, router]);
 
-  useEffect(() => {
-    if (user) setForm({ displayName: user.displayName, bio: user.bio ?? "", avatarUrl: user.avatarUrl ?? "" });
-  }, [user]);
+  // Seed the editable form from the signed-in user. Adjusting state during render
+  // (React's documented pattern for "reset state when a prop changes") avoids the
+  // extra render pass an effect would cause. Keyed on id, so saving a profile
+  // doesn't clobber edits the user has already typed.
+  const [seededUserId, setSeededUserId] = useState<string | null>(null);
+  if (user && user.id !== seededUserId) {
+    setSeededUserId(user.id);
+    setForm({ displayName: user.displayName, bio: user.bio ?? "", avatarUrl: user.avatarUrl ?? "" });
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

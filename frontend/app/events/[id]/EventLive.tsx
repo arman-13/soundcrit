@@ -52,7 +52,7 @@ function hubToTrack(h: HubTrack): Track {
 
 export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { user, token } = useAuth();
-  const { currentTrack: playerTrack, isPlaying, setIsPlaying, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId, dismiss } = useAudioPlayer();
+  const { currentTrack: playerTrack, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId, dismiss } = useAudioPlayer();
   const router = useRouter();
 
   useEffect(() => {
@@ -70,7 +70,18 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
 
   const [countdown, setCountdown] = useState<number | null>(null);
   const [trackIndex, setTrackIndex] = useState(event.playbackState.currentTrackIndex);
-  const [elapsed, setElapsed] = useState(0);
+  // Elapsed seconds are anchored to the track they belong to, so switching tracks
+  // resets the counter during render instead of showing the previous track's
+  // elapsed time for one frame before an effect zeroes it.
+  const [elapsedState, setElapsedState] = useState({ index: trackIndex, value: 0 });
+  const setElapsed = useCallback(
+    (v: number | ((prev: number) => number)) =>
+      setElapsedState((s) => ({ ...s, value: typeof v === "function" ? v(s.value) : v })),
+    [],
+  );
+  // Zero the counter as soon as the track changes, during render.
+  if (elapsedState.index !== trackIndex) setElapsedState({ index: trackIndex, value: 0 });
+  const elapsed = elapsedState.value;
   const [comments, setComments] = useState<EventComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -148,7 +159,15 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [approvedTracks, event.id, playerTrack?.id]);
 
-  const { eventStatus } = useEventHub(
+  const triggerEnding = useCallback(() => {
+    setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
+    setIsEnding(true);
+    // Prefetch ended event data so EventEnded renders immediately after animation
+    getEvent(event.id).then(setEndedEvent).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.id]);
+
+  useEventHub(
     event.id, token,
     (comment) => setComments((prev) => {
       const idx = prev.findIndex((c) => c.id < 0 && c.content === comment.content && c.displayName === comment.displayName);
@@ -161,19 +180,12 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     }),
     startCountdown,
     handleTrackChanged,
+    undefined,
+    undefined,
+    // Handled as a push callback rather than by mirroring hub state into an
+    // effect, so ending the session is a direct reaction to the signal.
+    triggerEnding,
   );
-
-  const triggerEnding = useCallback(() => {
-    setIsLive(false); setIsCountdown(false); setLiveEventId(null); dismiss();
-    setIsEnding(true);
-    // Prefetch ended event data so EventEnded renders immediately after animation
-    getEvent(event.id).then(setEndedEvent).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id]);
-
-  useEffect(() => {
-    if (eventStatus === "Ended") triggerEnding();
-  }, [eventStatus, triggerEnding]);
 
   // Sync on mount and on tab focus — restores playback position and countdown state
   // Full sync on mount only — restores track, elapsed, countdown
@@ -228,12 +240,12 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id, countdown]);
 
-  // Live elapsed timer — resets when track changes
+  // Live elapsed timer. The reset on track change is handled by the render-phase
+  // adjustment below, so this effect only owns the ticking.
   useEffect(() => {
-    setElapsed(0);
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
-  }, [trackIndex]);
+  }, [trackIndex, setElapsed]);
 
 
   const handleComment = async () => {

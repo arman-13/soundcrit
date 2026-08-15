@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 
 type Phase = "ended" | "preparing" | "ready";
 
@@ -8,16 +8,17 @@ export default function EventEndingScreen({ eventTitle, onDone }: { eventTitle: 
   const [phase, setPhase] = useState<Phase>("ended");
   const [visible, setVisible] = useState(false);
   const [barWidth, setBarWidth] = useState(0);
-  const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
+  // Always calls the latest onDone without making it a dependency, so the
+  // timeline is never restarted mid-animation by a parent re-render.
+  const emitDone = useEffectEvent(() => onDone());
 
   useEffect(() => {
     const t0 = setTimeout(() => setVisible(true), 50);
     const t1 = setTimeout(() => { setPhase("preparing"); setBarWidth(100); }, 2000);
     const t2 = setTimeout(() => setPhase("ready"), 5500);
-    const t3 = setTimeout(() => onDoneRef.current(), 7500);
+    const t3 = setTimeout(() => emitDone(), 7500);
     return () => { clearTimeout(t0); clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, []); // run once on mount — onDoneRef stays current without restarting timers
+  }, []); // run once on mount
 
   return (
     <div

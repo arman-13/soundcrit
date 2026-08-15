@@ -1,7 +1,7 @@
 "use client";
 
 import * as signalR from "@microsoft/signalr";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { EventComment } from "@/types";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
@@ -27,20 +27,22 @@ export function useEventHub(
   onTrackChanged?: (track: HubTrack) => void,
   onEventStarted?: () => void,
   onTrackSubmitted?: (payload: { trackTitle: string; submitterName: string }) => void,
+  onEventEnded?: () => void,
 ) {
   const [eventStatus, setEventStatus] = useState<string | null>(null);
   const [approvedUserId, setApprovedUserId] = useState<string | null>(null);
   const connectionRef = useRef<signalR.HubConnection | null>(null);
-  const onNewCommentRef = useRef(onNewComment);
-  onNewCommentRef.current = onNewComment;
-  const onCountdownStartedRef = useRef(onCountdownStarted);
-  onCountdownStartedRef.current = onCountdownStarted;
-  const onTrackChangedRef = useRef(onTrackChanged);
-  onTrackChangedRef.current = onTrackChanged;
-  const onEventStartedRef = useRef(onEventStarted);
-  onEventStartedRef.current = onEventStarted;
-  const onTrackSubmittedRef = useRef(onTrackSubmitted);
-  onTrackSubmittedRef.current = onTrackSubmitted;
+
+  // Effect Events always see the latest props without becoming effect dependencies,
+  // so the hub connection is never torn down just because a parent re-rendered.
+  const emitNewComment = useEffectEvent((comment: EventComment) => onNewComment?.(comment));
+  const emitCountdownStarted = useEffectEvent((seconds: number) => onCountdownStarted?.(seconds));
+  const emitTrackChanged = useEffectEvent((track: HubTrack) => onTrackChanged?.(track));
+  const emitEventStarted = useEffectEvent(() => onEventStarted?.());
+  const emitTrackSubmitted = useEffectEvent(
+    (payload: { trackTitle: string; submitterName: string }) => onTrackSubmitted?.(payload),
+  );
+  const emitEventEnded = useEffectEvent(() => onEventEnded?.());
 
   useEffect(() => {
     const builder = new signalR.HubConnectionBuilder()
@@ -54,24 +56,24 @@ export function useEventHub(
       .build();
 
     builder.on("TrackChanged", (track: HubTrack) => {
-      onTrackChangedRef.current?.(track);
+      emitTrackChanged(track);
     });
 
     builder.on("CountdownStarted", (seconds: number) => {
-      onCountdownStartedRef.current?.(seconds);
+      emitCountdownStarted(seconds);
     });
 
     builder.on("EventStarted", () => {
-      console.log("[SignalR] EventStarted received");
-      onEventStartedRef.current?.();
+      emitEventStarted();
     });
 
     builder.on("EventEnded", () => {
       setEventStatus("Ended");
+      emitEventEnded();
     });
 
     builder.on("NewComment", (comment: EventComment) => {
-      onNewCommentRef.current?.(comment);
+      emitNewComment(comment);
     });
 
     builder.on("RequestApproved", (userId: string) => {
@@ -79,21 +81,18 @@ export function useEventHub(
     });
 
     builder.on("TrackSubmitted", (payload: { trackTitle: string; submitterName: string }) => {
-      console.log("[SignalR] TrackSubmitted received", payload);
-      onTrackSubmittedRef.current?.(payload);
+      emitTrackSubmitted(payload);
     });
 
     builder.onreconnected(() => {
-      console.log("[SignalR] Reconnected, rejoining event", eventId);
-      builder.invoke("JoinEvent", eventId);
+      builder.invoke("JoinEvent", eventId).catch(() => {});
     });
 
     let stopped = false;
     builder.start()
       .then(() => {
         if (stopped) { builder.stop(); return; }
-        console.log("[SignalR] Connected, joining event", eventId);
-        builder.invoke("JoinEvent", eventId);
+        return builder.invoke("JoinEvent", eventId);
       })
       .catch((err) => console.error("[SignalR] Connection failed:", err));
 

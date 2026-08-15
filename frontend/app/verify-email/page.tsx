@@ -13,10 +13,15 @@ function VerifyEmailContent() {
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
 
   useEffect(() => {
-    if (!email || !token) { setStatus("error"); return; }
-    verifyEmail(email, token)
-      .then(() => setStatus("success"))
-      .catch(() => setStatus("error"));
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => {
+        if (!email || !token) throw new Error("Missing email or token");
+        return verifyEmail(email, token);
+      })
+      .then(() => { if (!cancelled) setStatus("success"); })
+      .catch(() => { if (!cancelled) setStatus("error"); });
+    return () => { cancelled = true; };
   }, [email, token]);
 
   if (status === "loading") {

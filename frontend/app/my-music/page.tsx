@@ -50,13 +50,28 @@ function MyMusicPageInner() {
     try { setTracks((await getAllTracksAdmin(token)).data); } catch {}
   }, [token]);
 
+  // Must depend on `token`: with an empty dep array this closed over the initial
+  // null token forever, so the albums request always went out unauthenticated
+  // and was swallowed by the empty catch — albums never loaded.
   const loadAlbums = useCallback(async () => {
-    try { setAlbums(await getMyAlbums(token!)); } catch {}
-  }, []);
+    if (!token) return;
+    try { setAlbums(await getMyAlbums(token)); } catch {}
+  }, [token]);
 
+  // Initial load runs as one async continuation rather than calling the loaders
+  // synchronously from the effect body.
   useEffect(() => {
-    if (token) { loadTracks(); loadAlbums(); }
-  }, [token, loadTracks, loadAlbums]);
+    if (!token) return;
+    let cancelled = false;
+    Promise.all([getAllTracksAdmin(token), getMyAlbums(token)])
+      .then(([trackPage, albumList]) => {
+        if (cancelled) return;
+        setTracks(trackPage.data);
+        setAlbums(albumList);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [token]);
 
   const handleDeleteTrack = async (id: number) => {
     if (!token || !confirm("Delete this track?")) return;

@@ -30,18 +30,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session on load
+  // Restore session on load. Every state update happens in an async continuation
+  // so the effect never triggers a synchronous cascading render.
   useEffect(() => {
+    let cancelled = false;
     const stored = localStorage.getItem("token");
-    if (!stored) { setLoading(false); return; }
 
-    fetch(`${API_URL}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${stored}` },
-    })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((u: UserDto) => { setToken(stored); setUser(u); })
-      .catch(() => localStorage.removeItem("token"))
-      .finally(() => setLoading(false));
+    const restore = stored
+      ? fetch(`${API_URL}/api/auth/me`, { headers: { Authorization: `Bearer ${stored}` } })
+          .then(async (r) => {
+            if (r.ok) return (await r.json()) as UserDto;
+            // Only a definitive rejection from the server invalidates the stored
+            // token. Network failures must not silently sign the user out.
+            if (r.status === 401 || r.status === 403) localStorage.removeItem("token");
+            throw new Error(`auth/me failed: ${r.status}`);
+          })
+          .then((u) => { if (!cancelled) { setToken(stored); setUser(u); } })
+          .catch(() => {})
+      : Promise.resolve();
+
+    restore.then(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
   const saveSession = (token: string, user: UserDto) => {

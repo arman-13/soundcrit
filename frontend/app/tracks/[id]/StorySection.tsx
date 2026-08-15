@@ -20,7 +20,7 @@ function StaticBlock({ block }: { block: StoryBlock }) {
   if (block.type === "quote")
     return (
       <blockquote className="border-l-2 border-white/20 pl-6 my-8">
-        <p className="text-white/60 text-lg leading-relaxed italic">"{block.content}"</p>
+        <p className="text-white/60 text-lg leading-relaxed italic">&ldquo;{block.content}&rdquo;</p>
       </blockquote>
     );
   if (block.type === "image")
@@ -62,9 +62,17 @@ function StaticBlock({ block }: { block: StoryBlock }) {
 function WordByWord({ content, isQuote }: { content: string; isQuote?: boolean }) {
   const words = content.split(/\s+/).filter(Boolean);
   const [count, setCount] = useState(0);
+  const [revealedContent, setRevealedContent] = useState(content);
+
+  // Restart the reveal when the text changes, adjusting state during render
+  // rather than in an effect (which would render the new text fully-revealed
+  // for one frame before resetting it).
+  if (revealedContent !== content) {
+    setRevealedContent(content);
+    setCount(0);
+  }
 
   useEffect(() => {
-    setCount(0);
     let n = 0;
     const timer = setInterval(() => {
       n += 1;
@@ -72,9 +80,7 @@ function WordByWord({ content, isQuote }: { content: string; isQuote?: boolean }
       if (n >= words.length) clearInterval(timer);
     }, 100);
     return () => clearInterval(timer);
-  // words.length is derived from content, safe to use content as dep
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [content]);
+  }, [content, words.length]);
 
   return (
     <p
@@ -90,7 +96,7 @@ function WordByWord({ content, isQuote }: { content: string; isQuote?: boolean }
         margin: 0,
       }}
     >
-      {isQuote && <span style={{ opacity: count > 0 ? 1 : 0, transition: "opacity 0.3s" }}>" </span>}
+      {isQuote && <span style={{ opacity: count > 0 ? 1 : 0, transition: "opacity 0.3s" }}>&ldquo; </span>}
       {words.map((w, i) => (
         <span
           key={i}
@@ -104,7 +110,7 @@ function WordByWord({ content, isQuote }: { content: string; isQuote?: boolean }
         </span>
       ))}
       {isQuote && (
-        <span style={{ opacity: count >= words.length ? 1 : 0, transition: "opacity 0.3s" }}>"</span>
+        <span style={{ opacity: count >= words.length ? 1 : 0, transition: "opacity 0.3s" }}>&rdquo;</span>
       )}
     </p>
   );
@@ -118,11 +124,11 @@ export default function StorySection({ blocks, audioUrl }: { blocks: StoryBlock[
   const [duration, setDuration] = useState(0);
   const [audioPlaying, setAudioPlaying] = useState(false);
 
-  // A/B crossfade for background images
-  const [imgA, setImgA] = useState<string | null>(null);
-  const [imgB, setImgB] = useState<string | null>(null);
-  const [top, setTop] = useState<"A" | "B">("A");
-  const lastImgRef = useRef<string | null>(null);
+  // A/B crossfade for background images. Held as one atomic value: the previous
+  // version called setImgA/setImgB from inside a setTop updater, which React may
+  // invoke twice (StrictMode / concurrent rendering) and double-swap the layers.
+  type Layers = { a: string | null; b: string | null; top: "A" | "B"; src: string | null };
+  const [layers, setLayers] = useState<Layers>({ a: null, b: null, top: "A", src: null });
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const { setIsPlaying: pauseGlobal } = useAudioPlayer();
@@ -141,16 +147,15 @@ export default function StorySection({ blocks, audioUrl }: { blocks: StoryBlock[
   const textBlock = [...blocks].reverse().find((b) => on(b) && (b.type === "text" || b.type === "quote")) ?? null;
 
   // ── Push new background image when bgUrl changes ──────────────────────────
-  useEffect(() => {
-    if (!visual) return;
-    if (bgUrl === lastImgRef.current) return;
-    lastImgRef.current = bgUrl;
-    if (!bgUrl) return;
-    setTop((prev) => {
-      if (prev === "A") { setImgB(bgUrl); return "B"; }
-      else { setImgA(bgUrl); return "A"; }
-    });
-  }, [visual, bgUrl]);
+  // Derived during render: loading the next image into the hidden layer and
+  // flipping which one is on top is a single, idempotent state transition.
+  if (visual && bgUrl && bgUrl !== layers.src) {
+    setLayers((prev) =>
+      prev.top === "A"
+        ? { ...prev, b: bgUrl, top: "B", src: bgUrl }
+        : { ...prev, a: bgUrl, top: "A", src: bgUrl },
+    );
+  }
 
   // ── Audio setup ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -181,10 +186,7 @@ export default function StorySection({ blocks, audioUrl }: { blocks: StoryBlock[
 
   const enterVisual = () => {
     pauseGlobal(false);
-    lastImgRef.current = null;
-    setImgA(null);
-    setImgB(null);
-    setTop("A");
+    setLayers({ a: null, b: null, top: "A", src: null });
     setCurrentTime(0);
     setVisual(true);
   };
@@ -247,7 +249,7 @@ export default function StorySection({ blocks, audioUrl }: { blocks: StoryBlock[
 
           {/* Layer 1: background images (A/B crossfade) */}
           <div style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
-            {([{ url: imgA, active: top === "A" }, { url: imgB, active: top === "B" }] as const).map(
+            {([{ url: layers.a, active: layers.top === "A" }, { url: layers.b, active: layers.top === "B" }] as const).map(
               ({ url, active }, i) =>
                 url ? (
                   <div

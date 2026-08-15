@@ -85,7 +85,6 @@ export default function EventUpcoming({ event: initialEvent }: { event: LiveEven
 
 function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { event: LiveEventDetail; onEventStarted: () => void; onTrackSubmittedRef: React.MutableRefObject<((p: { trackTitle: string; submitterName: string }) => void) | undefined> }) {
   const { user, token } = useAuth();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const newTrackId = searchParams.get("newTrackId");
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
@@ -106,14 +105,6 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
 
-  useEffect(() => {
-    console.log("[EventUpcoming] isHost:", isHost);
-    if (!isHost) return;
-    onTrackSubmittedRef.current = (payload) =>
-      addToast(`New submission: "${payload.trackTitle}" by ${payload.submitterName}`);
-    return () => { onTrackSubmittedRef.current = undefined; };
-  }, [isHost, onTrackSubmittedRef]);
-
   const toLocalDatetimeValue = (iso: string) => {
     const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -122,16 +113,29 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
 
   const [toasts, setToasts] = useState<{ id: number; message: string }[]>([]);
   const toastId = useRef(0);
-  const addToast = (message: string) => {
+  const addToast = useCallback((message: string) => {
     const id = ++toastId.current;
     setToasts((prev) => [...prev, { id, message }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  };
+  }, []);
+
+  // Declared after addToast so the effect isn't reaching into the temporal dead
+  // zone of a `const` defined further down the component.
+  useEffect(() => {
+    if (!isHost) return;
+    onTrackSubmittedRef.current = (payload) =>
+      addToast(`New submission: "${payload.trackTitle}" by ${payload.submitterName}`);
+    return () => { onTrackSubmittedRef.current = undefined; };
+  }, [isHost, onTrackSubmittedRef, addToast]);
 
   const [editingDate, setEditingDate] = useState(false);
   const [newDateValue, setNewDateValue] = useState("");
   const [dateSaving, setDateSaving] = useState(false);
+  // Cover and schedule are edited in place by the host. They live in state rather
+  // than being written back onto the `event` prop: mutating a prop doesn't tell
+  // React anything changed, so the countdown only re-rendered by coincidence.
   const [coverUrl, setCoverUrl] = useState(event.coverImageUrl ?? "");
+  const [scheduledAt, setScheduledAt] = useState(event.scheduledAt);
   const [coverUploading, setCoverUploading] = useState(false);
   const coverInputRef = useRef<HTMLInputElement>(null);
 
@@ -140,9 +144,8 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
     setCoverUploading(true);
     try {
       const url = await uploadImage(file, token);
-      await updateEvent(event.id, { title: event.title, description: event.description ?? undefined, coverImageUrl: url, scheduledAt: event.scheduledAt }, token);
+      await updateEvent(event.id, { title: event.title, description: event.description ?? undefined, coverImageUrl: url, scheduledAt }, token);
       setCoverUrl(url);
-      event.coverImageUrl = url;
     } catch {
       alert("Failed to update cover image.");
     } finally {
@@ -155,8 +158,8 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
     setDateSaving(true);
     try {
       const utc = new Date(newDateValue).toISOString();
-      await updateEvent(event.id, { title: event.title, description: event.description ?? undefined, coverImageUrl: event.coverImageUrl ?? undefined, scheduledAt: utc }, token);
-      event.scheduledAt = utc;
+      await updateEvent(event.id, { title: event.title, description: event.description ?? undefined, coverImageUrl: coverUrl || undefined, scheduledAt: utc }, token);
+      setScheduledAt(utc);
       setEditingDate(false);
     } catch {
       alert("Failed to update date.");
@@ -189,7 +192,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
         })
         .catch(() => {});
     }
-  }, [event.id, token, isHost]);
+  }, [event.id, token, isHost, user?.id]);
 
 
   const handleTrackSubmit = async () => {
@@ -278,7 +281,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
         <span>Hosted by {event.hostDisplayName}</span>
       </div>
 
-      <BigCountdown scheduledAt={event.scheduledAt} onExpire={onEventStarted} />
+      <BigCountdown scheduledAt={scheduledAt} onExpire={onEventStarted} />
 
       {isHost && (
         <div className="mb-6">
@@ -302,7 +305,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
             </div>
           ) : (
             <button
-              onClick={() => { setNewDateValue(toLocalDatetimeValue(event.scheduledAt)); setEditingDate(true); }}
+              onClick={() => { setNewDateValue(toLocalDatetimeValue(scheduledAt)); setEditingDate(true); }}
               className="text-xs text-white/25 hover:text-white/50 transition-colors"
             >
               Edit date & time
@@ -350,7 +353,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
               {trackSubmitted ? (
                 <div className="py-5 text-center space-y-1">
                   <p className="text-2xl">🎧</p>
-                  <p className="text-sm text-white/70">You're in the mix.</p>
+                  <p className="text-sm text-white/70">You&apos;re in the mix.</p>
                   <p className="text-xs text-white/30">Your track is queued — one submission per session.</p>
                 </div>
               ) : submitMode === null ? (
@@ -370,7 +373,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
                   >
                     <div>
                       <p className="text-sm text-white/70">Upload a new track</p>
-                      <p className="text-xs text-white/30 mt-0.5">You'll be brought back here after uploading</p>
+                      <p className="text-xs text-white/30 mt-0.5">You&apos;ll be brought back here after uploading</p>
                     </div>
                   </Link>
                 </div>
@@ -450,7 +453,10 @@ function TrackSubmissionsList({ submissions, loading, eventId, token, onUpdate, 
   onDelete: (id: number) => void;
 }) {
   const { playTrack, currentTrack, isPlaying, setIsPlaying } = useAudioPlayer();
+  // The ref is what the drop handler reads synchronously mid-drag; the state
+  // mirror is what render reads, since reading a ref during render is not safe.
   const dragId = useRef<number | null>(null);
+  const [draggingId, setDraggingId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
 
   const handlePlay = (t: EventTrack) => {
@@ -506,13 +512,13 @@ function TrackSubmissionsList({ submissions, loading, eventId, token, onUpdate, 
             <div
               key={t.id}
               draggable={t.status === "Approved"}
-              onDragStart={() => { dragId.current = t.id; }}
-              onDragEnd={() => { dragId.current = null; setDragOver(null); }}
+              onDragStart={() => { dragId.current = t.id; setDraggingId(t.id); }}
+              onDragEnd={() => { dragId.current = null; setDraggingId(null); setDragOver(null); }}
               onDragOver={(e) => { if (t.status === "Approved") { e.preventDefault(); setDragOver(t.id); } }}
               onDragLeave={() => setDragOver(null)}
               onDrop={(e) => { e.preventDefault(); setDragOver(null); handleDrop(t.id); }}
               className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${
-                dragOver === t.id && dragId.current !== t.id
+                dragOver === t.id && draggingId !== t.id
                   ? "border-white/30 bg-white/[0.05]"
                   : "border-white/8 bg-white/[0.02]"
               }`}
