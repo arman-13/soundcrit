@@ -61,6 +61,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<EventComment>()
             .HasIndex(ec => new { ec.EventId, ec.EventTrackId });
 
+        modelBuilder.Entity<Album>()
+            .HasIndex(a => a.ArtistId);
+
         modelBuilder.Entity<Track>()
             .HasIndex(t => t.IsPublished);
         modelBuilder.Entity<Track>()

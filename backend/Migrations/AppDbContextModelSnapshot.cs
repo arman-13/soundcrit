@@ -30,6 +30,9 @@ namespace backend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("ArtistId")
+                        .HasColumnType("text");
+
                     b.Property<string>("CoverImageUrl")
                         .IsRequired()
                         .HasColumnType("text");
@@ -48,6 +51,8 @@ namespace backend.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ArtistId");
 
                     b.ToTable("Albums");
                 });

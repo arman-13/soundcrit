@@ -277,7 +277,14 @@ forced a full rebuild to confirm. Still clean after all changes.
 These need a schema migration, a product decision, or infrastructure work, so I've documented rather
 than acted on them.
 
-### 1. `Album` has no owner column — authorization can't be expressed
+### 1. `Album` has no owner column — authorization can't be expressed — **RESOLVED**
+
+> **Fixed after this review was written.** `Album.ArtistId` was added
+> (migration `20260815213709_AddAlbumArtistId`, with a backfill from each album's lowest-numbered
+> track), and ownership checks were applied to all six mutating endpoints. Albums that could not be
+> attributed remain `NULL` and are treated as unowned. The original finding is kept below for
+> context.
+
 
 `AlbumsController` has **zero ownership checks** across `Create`, `Update`, `Delete`, `AddTrack`,
 `RemoveTrack` and `ReorderTracks`. Any authenticated user can edit or delete any album and rearrange
@@ -390,9 +397,8 @@ every page load and nothing surfaced anywhere. Worth at least logging in develop
 
 ## Housekeeping
 
-- **`mobile/` is untracked in git.** `git status` shows it as an untracked directory, so none of the
-  mobile app is version-controlled. That looks unintentional and is the highest-value thing to fix
-  here — including the `expo-asset` addition made in this review.
+- ~~**`mobile/` is untracked in git.**~~ **Resolved** — the mobile app was added to the monorepo in
+  `936c417`, including the `expo-asset` fix from this review.
 - **`mobile/` has no ESLint config.** Given the frontend's 27 errors were nearly all real React
   correctness issues, and mobile shares the same patterns and authors, adding `eslint-config-expo`
   would likely surface a comparable set. I did not add it here — introducing a linter mid-review
