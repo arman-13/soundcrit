@@ -30,7 +30,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 .AddDefaultTokenProviders();
 
 // JWT
-var jwtKey = builder.Configuration["Jwt:Key"]!;
+// Fail fast with a readable message: a missing key previously surfaced as a
+// NullReferenceException from deep inside the token handler at first login.
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is not configured.");
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -129,10 +132,8 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<EventHub>("/hubs/event");
 
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    // db.Database.Migrate();
-}
+// Migrations are applied deliberately, not on boot. (The scope that used to be
+// created here resolved AppDbContext and then did nothing with it.)
+// To apply them: dotnet ef database update
 
 app.Run();

@@ -34,6 +34,13 @@ public class EventTracksController : ControllerBase
         var isHost = ev?.HostId == userId;
         if (!isApproved && !isHost) return Forbid();
 
+        // You may only submit your own track. Previously any approved participant
+        // could submit an arbitrary TrackId, including another artist's
+        // unpublished work, into a session lineup.
+        var track = await _db.Tracks.FindAsync(body.TrackId);
+        if (track is null) return NotFound("Track not found.");
+        if (track.ArtistId != userId) return Forbid();
+
         var alreadySubmitted = await _db.EventTracks.AnyAsync(t => t.EventId == eventId && t.UserId == userId);
         if (alreadySubmitted) return Conflict("You've already submitted a track to this session.");
 
@@ -50,7 +57,6 @@ public class EventTracksController : ControllerBase
         });
         await _db.SaveChangesAsync();
 
-        var track = await _db.Tracks.FindAsync(body.TrackId);
         var submitter = await _db.Users.FindAsync(userId);
         await _hub.Clients.Group($"event-{eventId}").SendAsync("TrackSubmitted", new {
             TrackTitle = track?.Title ?? "Unknown",
@@ -89,7 +95,10 @@ public class EventTracksController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (ev.HostId != userId) return Forbid();
 
-        var et = await _db.EventTracks.FindAsync(trackId);
+        // Scoped to the event in the route: FindAsync(trackId) alone let the host
+        // of one session approve, reject or reorder a submission belonging to a
+        // different session entirely.
+        var et = await _db.EventTracks.FirstOrDefaultAsync(t => t.Id == trackId && t.EventId == eventId);
         if (et is null) return NotFound();
         et.Status = body.Status;
         et.Order = body.Order;
@@ -126,7 +135,8 @@ public class EventTracksController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (ev.HostId != userId) return Forbid();
 
-        var et = await _db.EventTracks.FindAsync(trackId);
+        // Scoped to the event in the route — see UpdateStatus.
+        var et = await _db.EventTracks.FirstOrDefaultAsync(t => t.Id == trackId && t.EventId == eventId);
         if (et is null) return NotFound();
         _db.EventTracks.Remove(et);
         await _db.SaveChangesAsync();

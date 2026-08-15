@@ -50,9 +50,7 @@ public class EventCommentsController : ControllerBase
         _db.EventComments.Add(comment);
         await _db.SaveChangesAsync();
 
-        var dto = new EventCommentDto(comment.Id, comment.EventTrackId, comment.UserId,
-            comment.DisplayName, comment.Content, comment.TrackTimestamp,
-            comment.CreatedAt, comment.IsAnonymous);
+        var dto = ToDto(comment);
 
         await _hub.Clients.Group($"event-{eventId}").SendAsync("NewComment", dto);
         return Ok(dto);
@@ -64,9 +62,20 @@ public class EventCommentsController : ControllerBase
         var comments = await _db.EventComments
             .Where(c => c.EventId == eventId && c.EventTrackId == eventTrackId)
             .OrderBy(c => c.TrackTimestamp)
-            .Select(c => new EventCommentDto(c.Id, c.EventTrackId, c.UserId, c.DisplayName,
-                c.Content, c.TrackTimestamp, c.CreatedAt, c.IsAnonymous))
+            .Select(c => new EventCommentDto(c.Id, c.EventTrackId,
+                // Anonymity has to hold in the payload, not just the label: the
+                // real UserId was previously shipped alongside DisplayName
+                // "Anonymous", so anyone reading the API response could unmask
+                // every anonymous comment.
+                c.IsAnonymous ? "" : c.UserId,
+                c.DisplayName, c.Content, c.TrackTimestamp, c.CreatedAt, c.IsAnonymous))
             .ToListAsync();
         return Ok(comments);
     }
+
+    // The author's own id is withheld too — this DTO is broadcast to the whole
+    // event group over SignalR, not just returned to the poster.
+    private static EventCommentDto ToDto(EventComment c) => new(
+        c.Id, c.EventTrackId, c.IsAnonymous ? "" : c.UserId, c.DisplayName,
+        c.Content, c.TrackTimestamp, c.CreatedAt, c.IsAnonymous);
 }

@@ -77,7 +77,9 @@ public class EventRequestsController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (ev.HostId != userId) return Forbid();
 
-        var req = await _db.EventRequests.FindAsync(requestId);
+        // Scoped to the event in the route: without the EventId check the host of
+        // one session could approve a join request made against another session.
+        var req = await _db.EventRequests.FirstOrDefaultAsync(r => r.Id == requestId && r.EventId == eventId);
         if (req is null) return NotFound();
         req.Status = body.Status;
         await _db.SaveChangesAsync();

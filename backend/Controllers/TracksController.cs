@@ -14,6 +14,10 @@ public class TracksController : ControllerBase
 {
     private readonly AppDbContext _db;
 
+    // Caller-supplied paging is clamped: an unbounded pageSize let a single
+    // request pull the entire catalogue into memory.
+    private const int MaxPageSize = 100;
+
     public TracksController(AppDbContext db) => _db = db;
 
     [HttpGet]
@@ -26,6 +30,9 @@ public class TracksController : ControllerBase
         [FromQuery] string? artist = null,
         [FromQuery] string? search = null)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
         var query = _db.Tracks.AsQueryable();
         if (all)
         {
@@ -64,6 +71,9 @@ public class TracksController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var followedIds = await _db.Follows
             .Where(f => f.FollowerId == userId)
@@ -113,11 +123,18 @@ public class TracksController : ControllerBase
     [HttpPost("{id}/play")]
     public async Task<IActionResult> IncrementPlay(int id)
     {
-        var track = await _db.Tracks.FindAsync(id);
-        if (track is null) return NotFound();
-        track.PlayCount++;
-        await _db.SaveChangesAsync();
-        return Ok(new { playCount = track.PlayCount });
+        // Incremented in the database rather than read-modify-write: concurrent
+        // listeners on the same track were each writing back a count they had
+        // read before the others' increments, silently losing plays.
+        var updated = await _db.Tracks
+            .Where(t => t.Id == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(t => t.PlayCount, t => t.PlayCount + 1));
+
+        if (updated == 0) return NotFound();
+
+        var playCount = await _db.Tracks.Where(t => t.Id == id)
+            .Select(t => t.PlayCount).FirstOrDefaultAsync();
+        return Ok(new { playCount });
     }
 
     [Authorize]
@@ -136,10 +153,19 @@ public class TracksController : ControllerBase
     public async Task<IActionResult> Update(int id, Track track)
     {
         if (id != track.Id) return BadRequest();
-        // Preserve the original ArtistId — don't let the client overwrite it
         var existing = await _db.Tracks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id);
         if (existing is null) return NotFound();
+
+        // Only the owning artist may edit a track. Without this any signed-in user
+        // could PUT over anyone else's track, since [Authorize] alone just proves
+        // that *some* account is making the call.
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (existing.ArtistId != userId) return Forbid();
+
+        // Server-owned fields are restored from the stored row so a client payload
+        // can't reassign ownership or rewrite the play count.
         track.ArtistId = existing.ArtistId;
+        track.PlayCount = existing.PlayCount;
         _db.Entry(track).State = EntityState.Modified;
         await _db.SaveChangesAsync();
         return NoContent();
@@ -151,6 +177,10 @@ public class TracksController : ControllerBase
     {
         var track = await _db.Tracks.FindAsync(id);
         if (track is null) return NotFound();
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (track.ArtistId != userId) return Forbid();
+
         _db.Tracks.Remove(track);
         await _db.SaveChangesAsync();
         return NoContent();

@@ -93,9 +93,10 @@ public class AuthController : ControllerBase
     [HttpGet("/api/users/{name}")]
     public async Task<ActionResult<PublicUserDto>> GetPublicProfile(string name)
     {
-        // Try username first, then display name
+        // Try username first, then display name. The fallback was a synchronous
+        // FirstOrDefault on the DbSet, blocking a request thread on database I/O.
         var user = await _userManager.FindByNameAsync(name)
-            ?? _userManager.Users.FirstOrDefault(u => u.DisplayName.ToLower() == name.ToLower());
+            ?? await _userManager.Users.FirstOrDefaultAsync(u => u.DisplayName.ToLower() == name.ToLower());
         if (user is null) return NotFound();
         return Ok(new PublicUserDto(user.Id, user.UserName!, user.DisplayName, user.AvatarUrl, user.Bio));
     }

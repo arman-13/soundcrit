@@ -15,9 +15,19 @@ public class EventSyncController : ControllerBase
     [HttpGet("{id}/sync")]
     public async Task<ActionResult<EventSyncDto>> Sync(int id)
     {
+        // Projected to just the playback fields. This endpoint is polled every few
+        // seconds by every listener in every live session; the old version eagerly
+        // loaded the whole track lineup on each call and used none of it.
         var ev = await _db.Events
-            .Include(e => e.EventTracks).ThenInclude(et => et.Track)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .Where(e => e.Id == id)
+            .Select(e => new
+            {
+                e.Status,
+                e.CurrentTrackIndex,
+                e.CurrentTrackStartedAt,
+                e.CountdownStartedAt,
+            })
+            .FirstOrDefaultAsync();
         if (ev is null) return NotFound();
 
         var now = DateTime.UtcNow;

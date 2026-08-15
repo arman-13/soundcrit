@@ -36,12 +36,34 @@ public class EventScheduler : BackgroundService
         }
     }
 
-    private static int ParseDurationToSeconds(string duration)
+    // A track whose duration can't be read must not be able to wedge a session:
+    // the advance check below only fires when durationSeconds > 0, so returning 0
+    // meant the scheduler sat on that track forever and the session never ended.
+    // "h:mm:ss" is accepted too — previously any track of an hour or longer
+    // parsed as 0 and stalled the event permanently.
+    private const int FallbackTrackSeconds = 210;
+
+    internal static int ParseDurationToSeconds(string? duration)
     {
+        if (string.IsNullOrWhiteSpace(duration)) return FallbackTrackSeconds;
+
         var parts = duration.Split(':');
-        if (parts.Length == 2 && int.TryParse(parts[0], out var m) && int.TryParse(parts[1], out var s))
-            return m * 60 + s;
-        return 0;
+        var values = new int[parts.Length];
+        for (var i = 0; i < parts.Length; i++)
+        {
+            if (!int.TryParse(parts[i].Trim(), out values[i]) || values[i] < 0)
+                return FallbackTrackSeconds;
+        }
+
+        var seconds = parts.Length switch
+        {
+            1 => values[0],
+            2 => values[0] * 60 + values[1],
+            3 => values[0] * 3600 + values[1] * 60 + values[2],
+            _ => 0,
+        };
+
+        return seconds > 0 ? seconds : FallbackTrackSeconds;
     }
 
     private async Task Tick()
@@ -85,6 +107,14 @@ public class EventScheduler : BackgroundService
             .Where(e => e.Status == "Live")
             .ToListAsync();
 
+        // Signals are queued and flushed *after* the transaction commits. Sending
+        // them inline raced the save: a client that received "TrackChanged" and
+        // immediately called GET /events/{id}/sync could read the previous track
+        // index and seek to the wrong position. The start-of-event path above
+        // already saved before signalling; this makes the advance path match.
+        var pending = new List<(int EventId, string Signal, object? Payload)>();
+        var uploadToProfileEventIds = new List<int>();
+
         foreach (var ev in live)
         {
             // Skip events that just started this tick — they'll be processed next tick
@@ -94,16 +124,16 @@ public class EventScheduler : BackgroundService
             if (tracks.Count == 0)
             {
                 ev.Status = "Ended";
-                await _hub.Clients.Group($"event-{ev.Id}").SendAsync("EventEnded");
-                await ProcessUploadToProfile(db, ev.Id);
+                pending.Add((ev.Id, "EventEnded", null));
+                uploadToProfileEventIds.Add(ev.Id);
                 continue;
             }
 
             if (ev.CurrentTrackIndex >= tracks.Count)
             {
                 ev.Status = "Ended";
-                await _hub.Clients.Group($"event-{ev.Id}").SendAsync("EventEnded");
-                await ProcessUploadToProfile(db, ev.Id);
+                pending.Add((ev.Id, "EventEnded", null));
+                uploadToProfileEventIds.Add(ev.Id);
                 continue;
             }
 
@@ -126,8 +156,8 @@ public class EventScheduler : BackgroundService
                     if (ev.CurrentTrackIndex >= tracks.Count)
                     {
                         ev.Status = "Ended";
-                        await _hub.Clients.Group($"event-{ev.Id}").SendAsync("EventEnded");
-                        await ProcessUploadToProfile(db, ev.Id);
+                        pending.Add((ev.Id, "EventEnded", null));
+                        uploadToProfileEventIds.Add(ev.Id);
                     }
                     else
                     {
@@ -136,30 +166,40 @@ public class EventScheduler : BackgroundService
                             next.Track.Title, next.Track.Artist, next.Track.AudioUrl ?? "",
                             next.Track.CoverImageUrl, next.Track.Duration, next.Track.Genre,
                             ev.CurrentTrackStartedAt!.Value);
-                        await _hub.Clients.Group($"event-{ev.Id}").SendAsync("TrackChanged", dto);
+                        pending.Add((ev.Id, "TrackChanged", dto));
                     }
                 }
             }
-            else if (elapsed >= durationSeconds && durationSeconds > 0)
+            else if (elapsed >= durationSeconds)
             {
                 var nextIndex = ev.CurrentTrackIndex + 1;
                 if (nextIndex < tracks.Count)
                 {
                     // More tracks — start countdown
                     ev.CountdownStartedAt = now;
-                    await _hub.Clients.Group($"event-{ev.Id}").SendAsync("CountdownStarted", 40);
+                    pending.Add((ev.Id, "CountdownStarted", 40));
                 }
                 else
                 {
                     // Last track finished — end immediately
                     ev.Status = "Ended";
-                    await _hub.Clients.Group($"event-{ev.Id}").SendAsync("EventEnded");
-                    await ProcessUploadToProfile(db, ev.Id);
+                    pending.Add((ev.Id, "EventEnded", null));
+                    uploadToProfileEventIds.Add(ev.Id);
                 }
             }
         }
 
         await db.SaveChangesAsync();
+
+        foreach (var eventId in uploadToProfileEventIds)
+            await ProcessUploadToProfile(db, eventId);
+
+        foreach (var (eventId, signal, payload) in pending)
+        {
+            var client = _hub.Clients.Group($"event-{eventId}");
+            if (payload is null) await client.SendAsync(signal);
+            else await client.SendAsync(signal, payload);
+        }
     }
 
     private async Task ProcessUploadToProfile(AppDbContext db, int eventId)

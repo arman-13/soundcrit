@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -30,7 +31,10 @@ public class JwtService
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddDays(double.Parse(_config["Jwt:ExpiryInDays"]!)),
+            // Invariant culture: a plain double.Parse reads "7.5" against the host's
+            // locale, so a server running under e.g. de-DE would throw at login.
+            expires: DateTime.UtcNow.AddDays(
+                double.Parse(_config["Jwt:ExpiryInDays"]!, CultureInfo.InvariantCulture)),
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256)
         );
 
