@@ -23,9 +23,16 @@ public class EventsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<EventSummaryDto>>> GetAll()
+    public async Task<ActionResult<IEnumerable<EventSummaryDto>>> GetAll([FromQuery] string? search = null)
     {
-        var events = await _db.Events
+        var query = _db.Events.AsQueryable();
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(e => e.Title.ToLower().Contains(s));
+        }
+
+        var events = await query
             .OrderBy(e => e.Status == "Live" ? 0 : e.Status == "Upcoming" ? 1 : 2)
             .ThenByDescending(e => e.ScheduledAt)
             .Select(e => new EventSummaryDto(

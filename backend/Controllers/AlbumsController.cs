@@ -19,7 +19,8 @@ public class AlbumsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<AlbumSummaryDto>>> GetAll(
         [FromQuery] string? artist = null,
-        [FromQuery] bool mine = false)
+        [FromQuery] bool mine = false,
+        [FromQuery] string? search = null)
     {
         IQueryable<Album> query;
         if (mine)
@@ -33,6 +34,12 @@ public class AlbumsController : ControllerBase
             query = _db.Albums.Where(a => a.IsPublished);
             if (artist is not null)
                 query = query.Where(a => a.TrackAlbums.Any(ta => ta.Track.ArtistId == artist));
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(a => a.Title.ToLower().Contains(s));
         }
 
         var albums = await query

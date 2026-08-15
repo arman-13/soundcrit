@@ -78,6 +78,26 @@ public class FollowController : ControllerBase
         return Ok(new { count, isFollowing });
     }
 
+    [HttpGet("/api/users/{userId}/following")]
+    public async Task<ActionResult<IEnumerable<PublicUserDto>>> GetFollowing(string userId)
+    {
+        var followeeIds = await _db.Follows
+            .Where(f => f.FollowerId == userId)
+            .OrderByDescending(f => f.CreatedAt)
+            .Select(f => f.FolloweeId)
+            .ToListAsync();
+
+        var users = await _db.Users.Where(u => followeeIds.Contains(u.Id)).ToListAsync();
+        var byId = users.ToDictionary(u => u.Id);
+
+        var ordered = followeeIds
+            .Where(id => byId.ContainsKey(id))
+            .Select(id => byId[id])
+            .Select(u => new PublicUserDto(u.Id, u.UserName!, u.DisplayName, u.AvatarUrl, u.Bio));
+
+        return Ok(ordered);
+    }
+
     [Authorize]
     [HttpPost]
     public async Task<IActionResult> Follow(string userId)

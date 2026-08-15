@@ -23,7 +23,8 @@ public class TracksController : ControllerBase
         [FromQuery] bool? featured = null,
         [FromQuery] int? albumId = null,
         [FromQuery] bool all = false,
-        [FromQuery] string? artist = null)
+        [FromQuery] string? artist = null,
+        [FromQuery] string? search = null)
     {
         var query = _db.Tracks.AsQueryable();
         if (all)
@@ -44,6 +45,12 @@ public class TracksController : ControllerBase
 
         if (albumId.HasValue)
             query = query.Where(t => t.TrackAlbums.Any(ta => ta.AlbumId == albumId.Value));
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(t => t.Title.ToLower().Contains(s) || t.Artist.ToLower().Contains(s));
+        }
 
         query = query.OrderByDescending(t => t.PublishedAt);
         var total = await query.CountAsync();

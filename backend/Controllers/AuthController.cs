@@ -1,10 +1,12 @@
 using System.Security.Claims;
+using Backend.Data;
 using Backend.DTOs;
 using Backend.Models;
 using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace Backend.Controllers;
 
@@ -15,12 +17,14 @@ public class AuthController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly JwtService _jwt;
     private readonly EmailService _email;
+    private readonly AppDbContext _db;
 
-    public AuthController(UserManager<ApplicationUser> userManager, JwtService jwt, EmailService email)
+    public AuthController(UserManager<ApplicationUser> userManager, JwtService jwt, EmailService email, AppDbContext db)
     {
         _userManager = userManager;
         _jwt = jwt;
         _email = email;
+        _db = db;
     }
 
     [HttpPost("register")]
@@ -94,6 +98,27 @@ public class AuthController : ControllerBase
             ?? _userManager.Users.FirstOrDefault(u => u.DisplayName.ToLower() == name.ToLower());
         if (user is null) return NotFound();
         return Ok(new PublicUserDto(user.Id, user.UserName!, user.DisplayName, user.AvatarUrl, user.Bio));
+    }
+
+    [HttpGet("/api/users/search")]
+    public async Task<ActionResult<IEnumerable<PublicUserDto>>> SearchArtists([FromQuery] string q, [FromQuery] int take = 20)
+    {
+        if (string.IsNullOrWhiteSpace(q)) return Ok(new List<PublicUserDto>());
+        var query = q.ToLower();
+
+        var artistIds = await _db.Tracks
+            .Where(t => t.IsPublished && t.ArtistId != null)
+            .Select(t => t.ArtistId!)
+            .Distinct()
+            .ToListAsync();
+
+        var users = await _userManager.Users
+            .Where(u => artistIds.Contains(u.Id) &&
+                (u.UserName!.ToLower().Contains(query) || u.DisplayName.ToLower().Contains(query)))
+            .Take(take)
+            .ToListAsync();
+
+        return Ok(users.Select(u => new PublicUserDto(u.Id, u.UserName!, u.DisplayName, u.AvatarUrl, u.Bio)));
     }
 
     [HttpPost("verify-email")]
