@@ -22,7 +22,9 @@ Verification after changes:
 - `frontend`: `eslint` → clean · `tsc --noEmit` → clean · `next build` → succeeds, all 19 routes
 - `mobile`: `tsc --noEmit` → clean · `expo-doctor` → **18/18 checks passed**
 
-Nothing has been committed or pushed — all changes are in the working tree.
+**Follow-up pass (2026-08-16):** findings #1, #2, #9, #10, #11 and #12 from Part 3 have since been
+resolved and are marked inline below. The remaining open items are #3, #4, #5, #6, #7 and #8 —
+all hardening for a service with untrusted users, deliberately parked.
 
 ---
 
@@ -299,7 +301,15 @@ artists — and completely undefined for an empty album.
 then apply the same checks used in `TracksController`. I did not do this because it requires a schema
 migration and a backfill decision that's yours to make.
 
-### 2. `EventScheduler` assumes exactly one backend instance
+### 2. `EventScheduler` assumes exactly one backend instance — **RESOLVED**
+
+> **Fixed.** The tick now runs inside a transaction holding a Postgres advisory lock
+> (`pg_try_advisory_xact_lock`), so exactly one instance advances events at a time; losers skip the
+> tick rather than queueing, and the lock is released by the commit even if a process dies. Verified
+> against a live Postgres: concurrent attempt returns false, and the lock frees between ticks.
+> Note that multi-instance also needs a SignalR backplane for pushes to reach every listener — the
+> `/sync` polling fallback degrades latency rather than breaking. Original finding below.
+
 
 The scheduler is a `BackgroundService` registered in every process, with no leader election,
 distributed lock, or optimistic-concurrency token on `Event`. Scale the API to two replicas and both
@@ -362,7 +372,14 @@ path reads the entire file into a `MemoryStream` and then `ToArray()`s it — tw
 per upload. `file.ContentType` is attacker-controlled and passed straight into
 `MediaTypeHeaderValue`, where a malformed value throws and surfaces as a 500.
 
-### 9. Client-side playback clock drifts away from the server
+### 9. Client-side playback clock drifts away from the server — **RESOLVED**
+
+> **Fixed in both clients.** Elapsed time is now derived from an anchor (last server-reported
+> position + local clock reading when it arrived) plus real wall-clock delta, instead of a counter
+> incremented per interval fire. Simulated 5-minute background tab: the counter reported 5s against
+> 300s real (295s drift); the derivation reports 300s. Every `/sync` poll re-anchors. Original
+> finding below.
+
 
 Both clients track elapsed time with a local `setInterval(… + 1, 1000)` and only reconcile against
 `/sync` on mount and every 5s (web) — while comment timestamps are derived from that drifting local
@@ -373,21 +390,37 @@ from `serverTime - currentTrackStartedAt` on each tick rather than counted local
 Relatedly, `EventLive.tsx` seeks with `setTimeout(() => seekTo(...), 100)` — an arbitrary race against
 audio load. `loadedmetadata` would be deterministic.
 
-### 10. Dead preload path in `EventLive.tsx`
+### 10. Dead preload path in `EventLive.tsx` — **RESOLVED (and partly misdiagnosed)**
+
+> **Correction:** this was not a wasted double download. Discarding the element still warms the
+> browser HTTP cache, which is how the "starts instantly" behaviour actually worked — so deleting
+> it would have removed a real optimisation. The dead part was only the unread `preloadRef`, and the
+> genuine defect was cleanup dropping the reference without aborting the in-flight request. The ref
+> is gone and cleanup now aborts the fetch. Original finding below.
+
 
 The effect that builds `new Audio()` during a countdown assigns `preloadRef.current` and nothing ever
 reads it. The preloaded element is never handed to the player, so it just downloads each track a
 second time. Either wire it into `AudioPlayerContext` or delete it — I left it in place because
 removing it is a behavioral judgment call about whether preloading is still wanted.
 
-### 11. Mobile `AuthContext` has the same sign-out-on-network-blip bug
+### 11. Mobile `AuthContext` has the same sign-out-on-network-blip bug — **RESOLVED**
+
+> **Fixed.** The stored token is now discarded only on a definitive 401/403. Network failures and
+> 5xx leave it in place to retry on next launch. Original finding below.
+
 
 Same issue as item under *Bugs fixed*, but I did not change it: mobile has **no lint or test
 coverage**, and offline behavior matters much more on a phone, so this deserves testing on a device
 rather than a blind edit. The fix mirrors the web one — only delete the stored token on a definitive
 401/403.
 
-### 12. Silent error swallowing throughout
+### 12. Silent error swallowing throughout — **RESOLVED**
+
+> **Fixed at the fetch layer** rather than at ~40 call sites: both `lib/api.ts` wrappers now log
+> failed requests in development (`NODE_ENV`/`__DEV__` guarded), so a request that fails is visible
+> even when the caller ends in `.catch(() => {})`. Original finding below.
+
 
 `catch {}` / `.catch(() => {})` appears extensively in both clients (4 bare `catch {}` in mobile
 alone). The My Music albums bug above was invisible for exactly this reason — the request failed on

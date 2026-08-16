@@ -3,9 +3,25 @@ import { Album, AlbumWithTracks, Comment, EventComment, EventRequest, EventSync,
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, options);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, options);
+  } catch (err) {
+    // Logged here because a great many call sites end in `.catch(() => {})`.
+    // A failing request used to leave no trace anywhere — that is exactly how
+    // the My Music albums bug stayed invisible, sending an unauthenticated
+    // request on every page load with nothing reported.
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[api] ${options?.method ?? "GET"} ${path} failed to reach the server:`, err);
+    }
+    throw err;
+  }
+
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[api] ${options?.method ?? "GET"} ${path} → ${res.status}`, body);
+    }
     throw new Error(`API error: ${res.status} — ${body}`);
   }
   if (res.status === 204) return null as T;

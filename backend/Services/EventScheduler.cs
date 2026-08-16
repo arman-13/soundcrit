@@ -66,11 +66,46 @@ public class EventScheduler : BackgroundService
         return seconds > 0 ? seconds : FallbackTrackSeconds;
     }
 
+    // Identifies this scheduler's advisory lock. Any bigint works as long as
+    // nothing else in the database picks the same number.
+    private const long SchedulerLockKey = 771_034_920_115;
+
     private async Task Tick()
     {
         using var scope = _scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var now = DateTime.UtcNow;
+
+        // The scheduler is registered in every process, so scaling the API to more
+        // than one replica used to mean several schedulers advancing the same
+        // events every 5 seconds — double-skipping tracks and racing each other's
+        // writes to CurrentTrackIndex, with nothing in the logs to show for it.
+        //
+        // A transaction-scoped advisory lock makes exactly one instance the ticker
+        // at a time. pg_try_advisory_xact_lock returns immediately rather than
+        // queueing, so the losing instances simply skip this tick instead of
+        // piling up, and the lock is released by the commit or rollback below —
+        // including if the process dies mid-tick.
+        await using var tx = await db.Database.BeginTransactionAsync();
+
+        var isTicker = await db.Database
+            .SqlQuery<bool>($"SELECT pg_try_advisory_xact_lock({SchedulerLockKey}) AS \"Value\"")
+            .SingleAsync();
+
+        if (!isTicker) return;
+
+        // Signals are queued and only flushed once the transaction has committed,
+        // so a client reacting to a push can never read pre-commit state back from
+        // GET /events/{id}/sync.
+        //
+        // Note for multi-instance deployments: the lock above makes advancing
+        // correct, but SignalR groups are per-process without a backplane, so
+        // these pushes only reach listeners connected to whichever instance won
+        // the tick. Everyone else falls back to polling /sync, which both clients
+        // already do every 5s — degraded latency rather than breakage. Running
+        // more than one replica should come with a Redis backplane.
+        var pending = new List<(int EventId, string Signal, object? Payload)>();
+        var uploadToProfileEventIds = new List<int>();
 
         // Start upcoming events
         var toStart = await db.Events
@@ -83,8 +118,12 @@ public class EventScheduler : BackgroundService
             var hasApprovedTracks = ev.EventTracks.Any(t => t.Status == "Approved");
             if (!hasApprovedTracks)
             {
+                // Nothing approved to play, so this session is over before it
+                // began. It previously still emitted "EventStarted", sending
+                // listeners to a live view of an event that had just ended.
                 ev.Status = "Ended";
                 startedEventIds.Add(ev.Id);
+                pending.Add((ev.Id, "EventEnded", null));
                 continue;
             }
             ev.Status = "Live";
@@ -92,13 +131,7 @@ public class EventScheduler : BackgroundService
             ev.CurrentTrackStartedAt = now;
             ev.CountdownStartedAt = null;
             startedEventIds.Add(ev.Id);
-        }
-        // Save BEFORE sending signals so router.refresh() sees the updated status
-        if (startedEventIds.Count > 0)
-        {
-            await db.SaveChangesAsync();
-            foreach (var ev in toStart)
-                await _hub.Clients.Group($"event-{ev.Id}").SendAsync("EventStarted");
+            pending.Add((ev.Id, "EventStarted", null));
         }
 
         // Advance live events
@@ -106,14 +139,6 @@ public class EventScheduler : BackgroundService
             .Include(e => e.EventTracks).ThenInclude(et => et.Track)
             .Where(e => e.Status == "Live")
             .ToListAsync();
-
-        // Signals are queued and flushed *after* the transaction commits. Sending
-        // them inline raced the save: a client that received "TrackChanged" and
-        // immediately called GET /events/{id}/sync could read the previous track
-        // index and seek to the wrong position. The start-of-event path above
-        // already saved before signalling; this makes the advance path match.
-        var pending = new List<(int EventId, string Signal, object? Payload)>();
-        var uploadToProfileEventIds = new List<int>();
 
         foreach (var ev in live)
         {
@@ -189,10 +214,12 @@ public class EventScheduler : BackgroundService
             }
         }
 
-        await db.SaveChangesAsync();
-
         foreach (var eventId in uploadToProfileEventIds)
             await ProcessUploadToProfile(db, eventId);
+
+        await db.SaveChangesAsync();
+        await tx.CommitAsync();
+        // The advisory lock is released here, with the commit.
 
         foreach (var (eventId, signal, payload) in pending)
         {
@@ -202,7 +229,9 @@ public class EventScheduler : BackgroundService
         }
     }
 
-    private async Task ProcessUploadToProfile(AppDbContext db, int eventId)
+    // No SaveChanges of its own: these edits are part of the caller's transaction
+    // and are committed with the rest of the tick.
+    private static async Task ProcessUploadToProfile(AppDbContext db, int eventId)
     {
         var toUpload = await db.EventTracks
             .Include(t => t.Track)
@@ -210,6 +239,5 @@ public class EventScheduler : BackgroundService
             .ToListAsync();
         foreach (var et in toUpload)
             et.Track.IsPublished = true;
-        await db.SaveChangesAsync();
     }
 }

@@ -18,9 +18,23 @@ import {
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5000").trim();
 
 async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, options);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, options);
+  } catch (err) {
+    // Logged here because many call sites end in `.catch(() => {})`, which left
+    // failing requests with no trace anywhere. Dev builds only.
+    if (__DEV__) {
+      console.warn(`[api] ${options?.method ?? "GET"} ${path} failed to reach the server:`, err);
+    }
+    throw err;
+  }
+
   if (!res.ok) {
     const body = await res.text().catch(() => "");
+    if (__DEV__) {
+      console.warn(`[api] ${options?.method ?? "GET"} ${path} → ${res.status}`, body);
+    }
     throw new Error(`API error: ${res.status} — ${body}`);
   }
   if (res.status === 204) return null as T;

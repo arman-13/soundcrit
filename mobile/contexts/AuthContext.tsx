@@ -36,12 +36,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch(`${API_URL}/api/auth/me`, {
           headers: { Authorization: `Bearer ${stored}` },
         });
-        if (!res.ok) throw new Error();
-        const u: UserDto = await res.json();
-        setToken(stored);
-        setUser(u);
+        if (res.ok) {
+          const u: UserDto = await res.json();
+          setToken(stored);
+          setUser(u);
+        } else if (res.status === 401 || res.status === 403) {
+          // Only a definitive rejection invalidates the stored token.
+          await deleteToken();
+        }
+        // Any other status (5xx, gateway errors) leaves the token in place to
+        // retry on next launch.
       } catch {
-        await deleteToken();
+        // Network failure — offline, DNS, timeout. Previously this also deleted
+        // the token, so opening the app on a bad connection silently signed the
+        // user out and forced a fresh login. Keep the token and retry later.
       } finally {
         setLoading(false);
       }

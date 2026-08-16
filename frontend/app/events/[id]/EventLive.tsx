@@ -69,19 +69,42 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   );
 
   const [countdown, setCountdown] = useState<number | null>(null);
+  // Hoisted above the preload effect below, which needs to depend on whether a
+  // countdown is running without re-firing on every one-second tick.
+  const isCountdown = countdown !== null;
   const [trackIndex, setTrackIndex] = useState(event.playbackState.currentTrackIndex);
-  // Elapsed seconds are anchored to the track they belong to, so switching tracks
-  // resets the counter during render instead of showing the previous track's
-  // elapsed time for one frame before an effect zeroes it.
-  const [elapsedState, setElapsedState] = useState({ index: trackIndex, value: 0 });
-  const setElapsed = useCallback(
-    (v: number | ((prev: number) => number)) =>
-      setElapsedState((s) => ({ ...s, value: typeof v === "function" ? v(s.value) : v })),
-    [],
-  );
-  // Zero the counter as soon as the track changes, during render.
-  if (elapsedState.index !== trackIndex) setElapsedState({ index: trackIndex, value: 0 });
-  const elapsed = elapsedState.value;
+  // Elapsed time is *derived*, not counted. It used to be a counter incremented
+  // by a 1s interval, which loses real time whenever the browser throttles timers
+  // (background tabs fire as slowly as once a minute), so the position drifted
+  // steadily behind the server — and comment timestamps, taken from this value,
+  // drifted with it.
+  //
+  // Instead we keep an anchor: the elapsed figure the server last reported, and
+  // the local clock reading at the moment we received it. Elapsed is then the
+  // anchor plus real wall-clock time since, which is immune to throttling
+  // because it measures time rather than counting ticks. Each /sync poll
+  // re-anchors, so any residual error is bounded by the poll interval.
+  // Anchors are set from event handlers and async continuations, never during
+  // render — reading the clock while rendering is impure. Both clock fields
+  // start at 0 so the first frame derives an elapsed of exactly 0.
+  const [anchor, setAnchor] = useState({ index: trackIndex, serverElapsed: 0, localMs: 0 });
+
+  // Drives a re-render each second; the displayed value comes from the anchor.
+  const [tickNow, setTickNow] = useState(0);
+
+  // Sets the display clock from the same reading as the anchor, so the new
+  // position is shown immediately rather than reading 0 until the next tick.
+  const anchorTo = useCallback((index: number, serverElapsed: number) => {
+    const now = Date.now();
+    setAnchor({ index, serverElapsed, localMs: now });
+    setTickNow(now);
+  }, []);
+
+  // If the track moved on without a matching anchor, show 0 rather than carrying
+  // the previous track's position forward.
+  const elapsed = anchor.index !== trackIndex
+    ? 0
+    : Math.max(0, anchor.serverElapsed + (tickNow - anchor.localMs) / 1000);
   const [comments, setComments] = useState<EventComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -100,7 +123,6 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     commentsEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [comments]);
   const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const preloadRef = useRef<HTMLAudioElement | null>(null);
   const trackIndexRef = useRef(trackIndex);
   useEffect(() => { trackIndexRef.current = trackIndex; }, [trackIndex]);
 
@@ -108,6 +130,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     const next = approvedTracks[index];
     if (!next) return;
     setTrackIndex(index);
+    anchorTo(index, 0);
     setCurrentEventTrackId(next.id);
     setComments([]);
     playTrack(toTrack(next), approvedTracks.map(toTrack));
@@ -134,16 +157,27 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     countdownIntervalRef.current = interval;
   }, [setIsCountdown, playNextTrack]);
 
-  // Preload next track audio during countdown so it starts instantly
+  // Warm the browser's HTTP cache for the next track during the countdown, so the
+  // player's own <audio> element finds it already local and starts instantly.
+  // The element here is deliberately throwaway — it exists only for that cache
+  // side effect, since playback goes through AudioPlayerContext's element and
+  // cannot be handed a different one.
   useEffect(() => {
     const next = approvedTracks[trackIndex + 1];
-    if (countdown === null || !next?.audioUrl) { preloadRef.current = null; return; }
+    if (!isCountdown || !next?.audioUrl) return;
+
     const audio = new Audio();
     audio.preload = "auto";
     audio.src = next.audioUrl;
-    preloadRef.current = audio;
-    return () => { preloadRef.current = null; };
-  }, [countdown !== null, trackIndex, approvedTracks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    return () => {
+      // Abort a still-running fetch. Previously the cleanup only dropped a
+      // reference, leaving the browser to finish downloading a track the
+      // listener may have already moved past.
+      audio.src = "";
+      audio.load();
+    };
+  }, [isCountdown, trackIndex, approvedTracks]);
 
   const handleTrackChanged = useCallback((hubTrack: HubTrack) => {
     if (countdownIntervalRef.current) { clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; }
@@ -152,6 +186,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     // Skip if countdown expiry already started playing this track
     if (playerTrack?.id === hubTrack.trackId) return;
     setTrackIndex(hubTrack.index);
+    anchorTo(hubTrack.index, 0);
     setCurrentEventTrackId(hubTrack.eventTrackId);
     playTrack(hubToTrack(hubTrack), approvedTracks.map(toTrack));
     setComments([]);
@@ -205,7 +240,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       const track = approvedTracks[sync.currentTrackIndex];
       if (track) {
         setCurrentEventTrackId(track.id);
-        setElapsed(sync.elapsedSeconds);
+        anchorTo(sync.currentTrackIndex, sync.elapsedSeconds);
         if (playerTrack?.id !== track.trackId) {
           playTrack(toTrack(track), approvedTracks.map(toTrack));
           setTimeout(() => seekTo(sync.elapsedSeconds), 100);
@@ -224,15 +259,19 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
           triggerEnding();
         } else if (sync.countdownSeconds > 0 && countdown === null) {
           startCountdown(Math.ceil(sync.countdownSeconds));
+        } else if (sync.status === "Live") {
+          // Re-anchor on every poll, so drift can never accumulate beyond one
+          // poll interval no matter how long the tab sat in the background.
+          anchorTo(sync.currentTrackIndex, sync.elapsedSeconds);
         }
       }).catch(() => {});
     };
     const interval = setInterval(checkSync, 5000);
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
-      // Resync elapsed from audio element — JS timer drifts in background tabs
-      const audioEl = (document.querySelector("audio") as HTMLAudioElement | null);
-      if (audioEl && !audioEl.paused) setElapsed(audioEl.currentTime);
+      // Coming back to the tab: refresh the display immediately, then re-anchor
+      // against the server rather than trusting the local audio element.
+      setTickNow(Date.now());
       checkSync();
     };
     document.addEventListener("visibilitychange", onVisible);
@@ -240,12 +279,13 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event.id, countdown]);
 
-  // Live elapsed timer. The reset on track change is handled by the render-phase
-  // adjustment below, so this effect only owns the ticking.
+  // Pure display tick — advances the clock reading that `elapsed` is computed
+  // from. It carries no state of its own, so a throttled or skipped interval
+  // costs a stale frame rather than permanently lost time.
   useEffect(() => {
-    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    const id = setInterval(() => setTickNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [trackIndex, setElapsed]);
+  }, []);
 
 
   const handleComment = async () => {
@@ -280,7 +320,6 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   };
 
   const currentTrack = approvedTracks[trackIndex] ?? null;
-  const isCountdown = countdown !== null;
 
 
   if (showEnded && endedEvent) return <EventEnded event={endedEvent} />;

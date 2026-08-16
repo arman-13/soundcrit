@@ -50,7 +50,19 @@ export default function EventLiveView({ event }: { event: LiveEventDetail }) {
     approvedTracks[event.playbackState.currentTrackIndex]?.id ?? null
   );
   const [countdown, setCountdown] = useState<number | null>(null);
-  const [elapsed, setElapsed] = useState(0);
+  // Elapsed time is derived from an anchor (the last server-reported position and
+  // the local clock reading when it arrived) plus real wall-clock time since,
+  // rather than counted by a ticking interval. JS timers are throttled while the
+  // app is backgrounded, so a counter silently falls behind real playback — and
+  // comment timestamps, taken from this value, fell behind with it.
+  const [anchor, setAnchor] = useState({ serverElapsed: 0, localMs: 0 });
+  const [tickNow, setTickNow] = useState(0);
+  const anchorTo = useCallback((serverElapsed: number) => {
+    const now = Date.now();
+    setAnchor({ serverElapsed, localMs: now });
+    setTickNow(now);
+  }, []);
+  const elapsed = Math.max(0, anchor.serverElapsed + (tickNow - anchor.localMs) / 1000);
   const [comments, setComments] = useState<EventComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -86,7 +98,7 @@ export default function EventLiveView({ event }: { event: LiveEventDetail }) {
       if (!track) return;
       setTrackIndex(sync.currentTrackIndex);
       setCurrentEventTrackId(track.id);
-      setElapsed(sync.elapsedSeconds);
+      anchorTo(sync.elapsedSeconds);
       if (playerTrack?.id !== track.trackId) {
         playTrack(toTrack(track), approvedTracks.map(toTrack));
         setTimeout(() => seekTo(sync.elapsedSeconds), 150);
@@ -129,10 +141,12 @@ export default function EventLiveView({ event }: { event: LiveEventDetail }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countdown !== null, event.id]);
 
-  // Local elapsed ticker between polls
+  // Display tick between polls. It only advances the clock reading that `elapsed`
+  // is computed from, so a throttled interval costs a stale frame rather than
+  // permanently lost time; each /sync poll re-anchors against the server.
   useEffect(() => {
     if (countdown !== null) return;
-    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    const id = setInterval(() => setTickNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [trackIndex, countdown !== null]);
 
