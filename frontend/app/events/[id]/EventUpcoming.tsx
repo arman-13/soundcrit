@@ -105,6 +105,10 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
 
+  // A track can only be in the lineup once, so hide the ones already in it —
+  // this matters for the host, who submits repeatedly from the same list.
+  const availableTracks = myTracks.filter((t) => !submissions.some((s) => s.trackId === t.id));
+
   const toLocalDatetimeValue = (iso: string) => {
     const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -172,10 +176,9 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
     if (!token) return;
     if (isHost) {
       getEventRequests(event.id, token).then(setRequests).catch(() => {}).finally(() => setRequestsLoading(false));
-      getEventTracks(event.id, token).then((tracks) => {
-        setSubmissions(tracks);
-        if (tracks.some((t) => t.userId === user?.id)) setTrackSubmitted(true);
-      }).catch(() => {}).finally(() => setSubmissionsLoading(false));
+      // No `trackSubmitted` lock here — the host may add as many tracks as they want.
+      getEventTracks(event.id, token).then(setSubmissions)
+        .catch(() => {}).finally(() => setSubmissionsLoading(false));
       getAllTracksAdmin(token).then((res) => setMyTracks(res.data)).catch(() => {});
     } else {
       getMyEventRequest(event.id, token)
@@ -200,7 +203,16 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
     setTrackSubmitting(true);
     try {
       await submitEventTrack(event.id, Number(selectedTrackId), uploadToProfile, token);
-      setTrackSubmitted(true);
+      if (isHost) {
+        // The host can keep going, so reset the form and pull the new track into
+        // the submissions list below rather than locking the panel.
+        setSelectedTrackId("");
+        setUploadToProfile(false);
+        setSubmitMode(null);
+        getEventTracks(event.id, token).then(setSubmissions).catch(() => {});
+      } else {
+        setTrackSubmitted(true);
+      }
     } catch (e) {
       alert(e instanceof Error ? e.message : "Failed to submit track");
     } finally {
@@ -344,7 +356,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
             onClick={() => { setSubmitOpen((o) => !o); setSubmitMode(null); }}
             className="w-full flex items-center justify-between px-5 py-4 text-sm text-white/60 hover:text-white/80 transition-colors"
           >
-            <span className="tracking-widest uppercase text-xs text-white/40">Submit a Track</span>
+            <span className="tracking-widest uppercase text-xs text-white/40">{isHost ? "Add Tracks" : "Submit a Track"}</span>
             <span className={`transition-transform duration-200 ${submitOpen ? "rotate-180" : ""}`}>▾</span>
           </button>
 
@@ -386,7 +398,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
                     className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors"
                   >
                     <option value="">Select one of your tracks…</option>
-                    {myTracks.map((t) => (
+                    {availableTracks.map((t) => (
                       <option key={t.id} value={t.id}>{t.title}</option>
                     ))}
                   </select>

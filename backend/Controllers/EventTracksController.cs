@@ -41,8 +41,13 @@ public class EventTracksController : ControllerBase
         if (track is null) return NotFound("Track not found.");
         if (track.ArtistId != userId) return Forbid();
 
-        var alreadySubmitted = await _db.EventTracks.AnyAsync(t => t.EventId == eventId && t.UserId == userId);
-        if (alreadySubmitted) return Conflict("You've already submitted a track to this session.");
+        // Guests get one slot each so no single artist can crowd out the lineup.
+        // The host is curating their own session, so they may submit as many as they like.
+        if (!isHost)
+        {
+            var alreadySubmitted = await _db.EventTracks.AnyAsync(t => t.EventId == eventId && t.UserId == userId);
+            if (alreadySubmitted) return Conflict("You've already submitted a track to this session.");
+        }
 
         var exists = await _db.EventTracks.AnyAsync(t => t.EventId == eventId && t.TrackId == body.TrackId);
         if (exists) return BadRequest("Track already submitted.");
