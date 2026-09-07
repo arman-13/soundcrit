@@ -385,6 +385,8 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
   });
   const [uploading, setUploading] = useState<{ image?: boolean; audio?: boolean }>({});
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [audioDragging, setAudioDragging] = useState(false);
   const coverRef = useRef<HTMLInputElement>(null);
   const audioRef = useRef<HTMLInputElement>(null);
 
@@ -397,8 +399,18 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
     setUploading((u) => ({ ...u, [type]: true }));
     try {
       const { url, duration } = await uploadFile(file, type, token);
-      if (type === "image") setForm((p) => ({ ...p, coverImageUrl: url }));
-      else setForm((p) => ({ ...p, audioUrl: url, ...(duration ? { duration } : {}) }));
+      if (type === "image") {
+        setForm((p) => ({ ...p, coverImageUrl: url }));
+      } else {
+        const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
+        setForm((p) => ({
+          ...p,
+          audioUrl: url,
+          ...(duration ? { duration } : {}),
+          // Auto-fill title from filename only if title is still empty
+          ...(p.title === "" ? { title: nameWithoutExt } : {}),
+        }));
+      }
     } catch (e) {
       setUploadError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -406,121 +418,209 @@ function TrackForm({ initial, onSubmit, busy, onCancel, userDisplayName }: {
     }
   };
 
-  const textFields: { key: keyof Track; label: string; placeholder?: string }[] = [
-    { key: "title", label: "Title" },
-    { key: "artist", label: "Artist" },
-    { key: "genre", label: "Genre" },
-    { key: "mood", label: "Mood tags", placeholder: "e.g. melancholic,late night" },
-    { key: "description", label: "Short description" },
-  ];
+  const isEditing = !!initial;
 
   return (
-    <div className="max-w-xl">
-      <h1 className="text-2xl font-light text-white/90 mb-8">{initial ? "Edit Track" : "Upload Track"}</h1>
+    <div className="max-w-lg">
+      <h1 className="text-2xl font-light text-white/90 mb-8">{isEditing ? "Edit Track" : "Upload Track"}</h1>
       <div className="space-y-5">
-        {textFields.map(({ key, label, placeholder }) => (
-          <div key={key}>
-            <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">{label}</label>
-            <input
-              type="text"
-              value={(form[key] as string) ?? ""}
-              onChange={set(key)}
-              placeholder={placeholder}
-              className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors"
-            />
-          </div>
-        ))}
 
-        {/* Cover Image upload */}
-        <div>
-          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Cover Image</label>
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
-              <input ref={coverRef} type="file" accept="image/*" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "image"); }} />
-              <button type="button"
-                onClick={() => coverRef.current?.click()}
-                disabled={uploading.image}
-                className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50">
-                {uploading.image ? "Uploading…" : "Choose image file…"}
-              </button>
-              {form.coverImageUrl && (
-                <p className="text-xs text-white/25 mt-1.5 truncate">{form.coverImageUrl}</p>
-              )}
-            </div>
-            {form.coverImageUrl && (
-              <div className="relative w-14 h-14 rounded overflow-hidden shrink-0 bg-white/5">
-                <Image src={form.coverImageUrl} alt="cover preview" fill className="object-cover" />
+        {/* Audio — drop zone (upload only) or player (edit) */}
+        {isEditing ? (
+          <div>
+            <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Audio</label>
+            <audio controls src={form.audioUrl as string} className="w-full h-8 opacity-50" />
+            <p className="text-xs text-white/20 mt-1.5">Audio cannot be changed after upload.</p>
+          </div>
+        ) : (
+          <div>
+            <input ref={audioRef} type="file" accept=".mp3,.wav,.flac,audio/*" className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "audio"); }} />
+            {form.audioUrl ? (
+              <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-white/10 bg-white/5">
+                <svg className="w-4 h-4 text-white/40 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+                </svg>
+                <audio controls src={form.audioUrl as string} className="flex-1 h-8 opacity-70" />
+                <button type="button" onClick={() => audioRef.current?.click()}
+                  className="text-xs text-white/30 hover:text-white/60 transition-colors shrink-0">
+                  Replace
+                </button>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => audioRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); setAudioDragging(true); }}
+                onDragLeave={() => setAudioDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setAudioDragging(false);
+                  const f = e.dataTransfer.files?.[0];
+                  if (f) handleFileUpload(f, "audio");
+                }}
+                disabled={uploading.audio}
+                className={`w-full border-2 border-dashed rounded-xl py-12 flex flex-col items-center gap-3 transition-colors ${
+                  audioDragging
+                    ? "border-white/40 bg-white/8"
+                    : "border-white/10 hover:border-white/25 bg-white/[0.02] hover:bg-white/5"
+                } disabled:opacity-50`}
+              >
+                {uploading.audio ? (
+                  <span className="text-sm text-white/40">Uploading…</span>
+                ) : (
+                  <>
+                    <svg className="w-8 h-8 text-white/20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z" />
+                    </svg>
+                    <div className="text-center">
+                      <p className="text-sm text-white/50">Drop audio file here</p>
+                      <p className="text-xs text-white/25 mt-1">or click to browse · mp3, wav, flac</p>
+                    </div>
+                  </>
+                )}
+              </button>
             )}
           </div>
+        )}
+
+        {/* Title */}
+        <div>
+          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Title</label>
+          <input
+            type="text"
+            value={(form.title as string) ?? ""}
+            onChange={set("title")}
+            placeholder="Track title"
+            className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors"
+          />
         </div>
 
-        {/* Audio */}
-        <div>
-          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Audio File</label>
-          {initial ? (
-            <div className="mt-1">
-              <audio controls src={form.audioUrl as string} className="w-full h-8 opacity-50" />
-              <p className="text-xs text-white/20 mt-1.5">Audio cannot be changed after upload.</p>
-            </div>
-          ) : (
-            <>
-              <input ref={audioRef} type="file" accept=".mp3,.wav,.flac,audio/*" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "audio"); }} />
-              <button type="button"
-                onClick={() => audioRef.current?.click()}
-                disabled={uploading.audio}
-                className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/50 hover:border-white/25 hover:text-white/75 transition-colors text-left disabled:opacity-50">
-                {uploading.audio ? "Uploading…" : "Choose audio file (.mp3, .wav, .flac)…"}
+        {/* Cover image — visual square + click */}
+        <div className="flex items-center gap-4">
+          <input ref={coverRef} type="file" accept="image/*" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "image"); }} />
+          <button
+            type="button"
+            onClick={() => coverRef.current?.click()}
+            disabled={uploading.image}
+            className="relative w-16 h-16 rounded-lg overflow-hidden bg-white/5 border border-white/10 hover:border-white/25 transition-colors shrink-0 flex items-center justify-center group"
+          >
+            {form.coverImageUrl ? (
+              <Image src={form.coverImageUrl as string} alt="cover" fill className="object-cover" />
+            ) : (
+              <svg className="w-5 h-5 text-white/20 group-hover:text-white/40 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+              </svg>
+            )}
+            {uploading.image && (
+              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                <span className="text-xs text-white/60">…</span>
+              </div>
+            )}
+          </button>
+          <div className="text-sm text-white/30">
+            {form.coverImageUrl ? (
+              <button type="button" onClick={() => coverRef.current?.click()} className="hover:text-white/60 transition-colors">
+                Change cover
               </button>
-              {form.audioUrl && (
-                <div className="mt-2">
-                  <audio controls src={form.audioUrl as string} className="w-full h-8 opacity-70" />
-                </div>
-              )}
-            </>
-          )}
+            ) : (
+              <button type="button" onClick={() => coverRef.current?.click()} className="hover:text-white/60 transition-colors">
+                Add cover image
+              </button>
+            )}
+            <p className="text-xs text-white/20 mt-0.5">Optional</p>
+          </div>
         </div>
 
         {uploadError && (
           <p className="text-red-400/80 text-sm">{uploadError}</p>
         )}
 
-        <div>
-          <label className="block text-xs tracking-widest uppercase text-white/30 mb-2">Liner Notes (markdown, legacy)</label>
-          <textarea
-            value={(form.story as string) ?? ""}
-            onChange={set("story")}
-            rows={3}
-            className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors resize-none"
-          />
-        </div>
-        <div className="border-t border-white/8 pt-5">
-          <StoryBlockEditor
-            value={form.storyBlocks}
-            onChange={(json) => setForm((p) => ({ ...p, storyBlocks: json }))}
-            audioUrl={(form.audioUrl as string) ?? ""}
-          />
-        </div>
-        <div className="flex gap-6">
-          <label className="flex items-center gap-2 text-sm text-white/50 cursor-pointer">
-            <input type="checkbox" checked={!!form.isFeatured}
-              onChange={(e) => setForm((p) => ({ ...p, isFeatured: e.target.checked }))}
-              className="accent-white" />
-            Featured
-          </label>
+        {/* Collapsible details */}
+        <button
+          type="button"
+          onClick={() => setShowDetails((v) => !v)}
+          className="flex items-center gap-2 text-xs text-white/30 hover:text-white/60 transition-colors"
+        >
+          <svg className={`w-3 h-3 transition-transform ${showDetails ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+          {showDetails ? "Hide details" : "Add details"}
+          <span className="text-white/15">· artist, genre, mood, description</span>
+        </button>
+
+        {showDetails && (
+          <div className="space-y-4 pl-4 border-l border-white/8">
+            {(isEditing ? (
+              [
+                { key: "artist" as keyof Track, label: "Artist" },
+                { key: "genre" as keyof Track, label: "Genre" },
+                { key: "mood" as keyof Track, label: "Mood tags", placeholder: "e.g. melancholic,late night" },
+                { key: "description" as keyof Track, label: "Short description" },
+              ]
+            ) : (
+              [
+                { key: "artist" as keyof Track, label: "Artist" },
+                { key: "genre" as keyof Track, label: "Genre" },
+                { key: "mood" as keyof Track, label: "Mood tags", placeholder: "e.g. melancholic,late night" },
+                { key: "description" as keyof Track, label: "Short description" },
+              ]
+            )).map(({ key, label, placeholder }) => (
+              <div key={key}>
+                <label className="block text-xs tracking-widest uppercase text-white/25 mb-1.5">{label}</label>
+                <input
+                  type="text"
+                  value={(form[key] as string) ?? ""}
+                  onChange={set(key)}
+                  placeholder={placeholder}
+                  className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors"
+                />
+              </div>
+            ))}
+            {isEditing && (
+              <>
+                <div>
+                  <label className="block text-xs tracking-widest uppercase text-white/25 mb-1.5">Liner Notes</label>
+                  <textarea
+                    value={(form.story as string) ?? ""}
+                    onChange={set("story")}
+                    rows={3}
+                    className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors resize-none"
+                  />
+                </div>
+                <div className="border-t border-white/8 pt-4">
+                  <StoryBlockEditor
+                    value={form.storyBlocks}
+                    onChange={(json) => setForm((p) => ({ ...p, storyBlocks: json }))}
+                    audioUrl={(form.audioUrl as string) ?? ""}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Published + Featured */}
+        <div className="flex gap-6 pt-1">
           <label className="flex items-center gap-2 text-sm text-white/50 cursor-pointer">
             <input type="checkbox" checked={!!form.isPublished}
               onChange={(e) => setForm((p) => ({ ...p, isPublished: e.target.checked }))}
               className="accent-white" />
             Published
           </label>
+          <label className="flex items-center gap-2 text-sm text-white/35 cursor-pointer">
+            <input type="checkbox" checked={!!form.isFeatured}
+              onChange={(e) => setForm((p) => ({ ...p, isFeatured: e.target.checked }))}
+              className="accent-white" />
+            Featured
+          </label>
         </div>
+
         <div className="flex gap-4 pt-2">
           <button disabled={busy || !!uploading.image || !!uploading.audio} onClick={() => onSubmit(form)}
             className="bg-white text-black text-sm font-medium px-5 py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-50">
-            {busy ? "Saving…" : initial ? "Save changes" : "Upload"}
+            {busy ? "Saving…" : isEditing ? "Save changes" : "Upload"}
           </button>
           <button onClick={onCancel} className="text-sm text-white/40 hover:text-white/70 transition-colors">Cancel</button>
         </div>
