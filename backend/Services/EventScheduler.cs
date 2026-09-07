@@ -107,9 +107,9 @@ public class EventScheduler : BackgroundService
         var pending = new List<(int EventId, string Signal, object? Payload)>();
         var uploadToProfileEventIds = new List<int>();
 
-        // Start upcoming events
+        // Start upcoming events — don't load Track data, only need EventTracks.Status
         var toStart = await db.Events
-            .Include(e => e.EventTracks).ThenInclude(et => et.Track)
+            .Include(e => e.EventTracks)
             .Where(e => e.Status == "Upcoming" && e.ScheduledAt <= now)
             .ToListAsync();
         var startedEventIds = new List<int>();
@@ -134,10 +134,10 @@ public class EventScheduler : BackgroundService
             pending.Add((ev.Id, "EventStarted", null));
         }
 
-        // Advance live events
+        // Advance live events — include tracks and their data
         var live = await db.Events
-            .Include(e => e.EventTracks).ThenInclude(et => et.Track)
             .Where(e => e.Status == "Live")
+            .Include(e => e.EventTracks).ThenInclude(et => et.Track)
             .ToListAsync();
 
         foreach (var ev in live)
