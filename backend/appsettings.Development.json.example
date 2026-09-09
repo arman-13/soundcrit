@@ -1,0 +1,29 @@
+{
+  "_comment": "Copy to appsettings.Development.json and fill in. That file is gitignored — never commit real values. Production reads these from Render env vars (Jwt__Key, ConnectionStrings__DefaultConnection, etc.), not from this file.",
+  "Resend": {
+    "ApiKey": "",
+    "From": "studio@soundcrit.com"
+  },
+  "AppUrl": "http://localhost:3000",
+  "Supabase": {
+    "Url": "https://<your-project-ref>.supabase.co",
+    "ServiceRoleKey": ""
+  },
+  "Cloudinary": {
+    "CloudName": "",
+    "ApiKey": "",
+    "ApiSecret": ""
+  },
+  "Jwt": {
+    "Key": "<any-local-dev-string-at-least-32-characters-long>"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=<host>;Port=5432;Database=postgres;Username=<user>;Password=<password>;SSL Mode=Require;Trust Server Certificate=true;Maximum Pool Size=5"
+  }
+}

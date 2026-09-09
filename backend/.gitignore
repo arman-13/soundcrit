@@ -1,6 +1,7 @@
 *.db
 *.db-shm
 *.db-wal
-appsettings.Development.json
 migrations.sql
+
+# Real secrets live here — see appsettings.Development.json.example for the shape
 appsettings.Development.json
