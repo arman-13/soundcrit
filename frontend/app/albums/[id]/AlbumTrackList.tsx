@@ -23,6 +23,15 @@ function albumTrackToTrack(t: AlbumTrackDto): Track {
   };
 }
 
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 export default function AlbumTrackList({ album }: { album: AlbumWithTracks }) {
   const { currentTrack, isPlaying, playTrack, setIsPlaying } = useAudioPlayer();
   const queue = album.tracks.map(albumTrackToTrack);
@@ -33,7 +42,41 @@ export default function AlbumTrackList({ album }: { album: AlbumWithTracks }) {
     else playTrack(track, queue);
   };
 
+  const handlePlayAll = () => {
+    if (queue.length === 0) return;
+    playTrack(queue[0], queue);
+  };
+
+  const handleShuffle = () => {
+    if (queue.length === 0) return;
+    const shuffled = shuffle(queue);
+    playTrack(shuffled[0], shuffled);
+  };
+
   return (
+    <div>
+      {/* Play / Shuffle buttons */}
+      <div className="flex gap-3 mb-6">
+        <button
+          onClick={handlePlayAll}
+          className="flex items-center gap-2 bg-white text-black text-sm font-medium px-5 py-2 rounded-full hover:bg-white/90 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+          Play
+        </button>
+        <button
+          onClick={handleShuffle}
+          className="flex items-center gap-2 border border-white/20 text-white/60 text-sm px-5 py-2 rounded-full hover:border-white/40 hover:text-white/80 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+            <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+            <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+          </svg>
+          Shuffle
+        </button>
+      </div>
     <div className="space-y-1">
       {album.tracks.map((t) => {
         const isActive = currentTrack?.id === t.trackId;
@@ -79,6 +122,7 @@ export default function AlbumTrackList({ album }: { album: AlbumWithTracks }) {
           </div>
         );
       })}
+    </div>
     </div>
   );
 }
