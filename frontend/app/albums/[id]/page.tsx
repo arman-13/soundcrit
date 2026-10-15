@@ -16,6 +16,21 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
     notFound();
   }
 
+  // Compute total duration from track durations (format: "m:ss" or "h:mm:ss")
+  const totalSeconds = album.tracks.reduce((sum, t) => {
+    if (!t.duration) return sum;
+    const parts = t.duration.split(":").map(Number);
+    if (parts.length === 2) return sum + parts[0] * 60 + parts[1];
+    if (parts.length === 3) return sum + parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return sum;
+  }, 0);
+  const totalMins = Math.floor(totalSeconds / 60);
+  const totalLength = totalMins >= 60
+    ? `${Math.floor(totalMins / 60)} hr ${totalMins % 60} min`
+    : `${totalMins} min`;
+
+  const artist = album.tracks[0]?.artist ?? "";
+
   return (
     <div className="max-w-3xl mx-auto px-6 py-20">
       {/* Header */}
@@ -25,8 +40,14 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="flex flex-col justify-end">
           <p className="text-xs tracking-widest uppercase text-white/25 mb-3">Album</p>
-          <h1 className="text-3xl md:text-4xl font-light text-white/90 leading-tight mb-3">{album.title}</h1>
-          <p className="text-sm text-white/35 mb-4">{new Date(album.releasedAt).getFullYear()} · {album.tracks.length} tracks</p>
+          <h1 className="text-3xl md:text-4xl font-light text-white/90 leading-tight mb-2">{album.title}</h1>
+          {artist && <p className="text-sm text-white/60 mb-3">{artist}</p>}
+          <p className="text-sm text-white/30 mb-4">
+            {new Date(album.releasedAt).getFullYear()}
+            {" · "}
+            {album.tracks.length} {album.tracks.length === 1 ? "track" : "tracks"}
+            {totalSeconds > 0 && ` · ${totalLength}`}
+          </p>
           {album.description && (
             <p className="text-sm text-white/45 leading-relaxed">{album.description}</p>
           )}
