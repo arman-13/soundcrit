@@ -38,8 +38,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
         <div className="relative w-full md:w-56 aspect-square rounded-lg overflow-hidden bg-white/5 shrink-0">
           <Image src={album.coverImageUrl} alt={album.title} fill className="object-cover" priority />
         </div>
-        <div className="flex flex-col justify-end">
-          <p className="text-xs tracking-widest uppercase text-white/25 mb-3">Album</p>
+        <div className="flex flex-col justify-start">
           <h1 className="text-3xl md:text-4xl font-light text-white/90 leading-tight mb-2">{album.title}</h1>
           {artist && <p className="text-sm text-white/60 mb-3">{artist}</p>}
           <p className="text-sm text-white/30 mb-4">
