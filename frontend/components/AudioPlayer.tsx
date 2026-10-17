@@ -105,11 +105,11 @@ export default function AudioPlayer() {
   return (
     <>
       <audio ref={audioRef} onTimeUpdate={handleTimeUpdate} onEnded={isLive ? undefined : playNext} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#111]/95 backdrop-blur-md border-t border-white/10 h-20">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-black/75 backdrop-blur-2xl border-t border-white/[0.07] h-20">
         {/* Progress bar — hidden during live */}
         {!isLive && (
-          <div className="absolute top-0 left-0 h-0.5 bg-white/10 w-full cursor-pointer" onClick={handleSeek}>
-            <div className="h-full bg-white/70 transition-all" style={{ width: `${progress}%` }} />
+          <div className="absolute top-0 left-0 h-px bg-white/8 w-full cursor-pointer group/seek" onClick={handleSeek}>
+            <div className="h-full bg-white/50 transition-all" style={{ width: `${progress}%` }} />
           </div>
         )}
 
@@ -153,14 +153,14 @@ export default function AudioPlayer() {
             </button>
 
             <button onClick={() => setIsPlaying(!isPlaying)}
-              className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:border-white/50 transition-colors"
+              className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors"
               aria-label={isPlaying ? "Pause" : "Play"}>
               {isPlaying ? (
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 24 24">
                   <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
                 </svg>
               ) : (
-                <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 text-black ml-0.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M8 5v14l11-7z" />
                 </svg>
               )}
