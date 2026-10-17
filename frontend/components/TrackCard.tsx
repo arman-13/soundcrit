@@ -26,7 +26,7 @@ export default function TrackCard({ track, queue }: Props) {
   const moods = track.mood?.split(",").map((m) => m.trim()).filter(Boolean) ?? [];
 
   return (
-    <div className={`group relative rounded-xl overflow-hidden bg-white/[0.03] border transition-all duration-300 ${isActive ? "border-white/20 scale-[1.01]" : "border-white/5 hover:border-white/12 hover:scale-[1.02] hover:bg-white/[0.05]"}`}>
+    <div className={`group relative rounded-lg overflow-hidden bg-white/[0.03] border transition-colors ${isActive ? "border-white/20" : "border-white/5 hover:border-white/15"}`}>
       {/* Cover */}
       <Link href={`/tracks/${track.id}`} className="block relative aspect-square">
         <Image
