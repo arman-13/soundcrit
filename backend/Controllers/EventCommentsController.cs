@@ -48,6 +48,12 @@ public class EventCommentsController : ControllerBase
             IsAnonymous = body.IsAnonymous, CreatedAt = DateTime.UtcNow
         };
         _db.EventComments.Add(comment);
+
+        // Track when comments arrive so the frontend can show a "new comments
+        // since last summary" indicator without querying comments directly.
+        if (ev.Status == "Ended")
+            ev.LastCommentAt = DateTime.UtcNow;
+
         await _db.SaveChangesAsync();
 
         var dto = ToDto(comment);

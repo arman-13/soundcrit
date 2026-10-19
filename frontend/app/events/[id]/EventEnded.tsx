@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { getEventComments, postEventComment } from "@/lib/api";
+import { getEventComments, postEventComment, getEventSummary, regenerateEventSummary } from "@/lib/api";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import { LiveEventDetail, EventComment, EventTrack, Track } from "@/types";
 import Image from "next/image";
@@ -30,6 +30,35 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
   const [commentText, setCommentText] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summaryGeneratedAt, setSummaryGeneratedAt] = useState<string | null>(null);
+  const [hasNewComments, setHasNewComments] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
+
+  useEffect(() => {
+    getEventSummary(event.id)
+      .then((s) => {
+        setSummary(s.summary);
+        setSummaryGeneratedAt(s.generatedAt);
+        setHasNewComments(s.hasNewComments);
+      })
+      .catch(() => {});
+  }, [event.id]);
+
+  const handleRegenerate = async () => {
+    if (!token) return;
+    setRegenerating(true);
+    try {
+      const s = await regenerateEventSummary(event.id, token);
+      setSummary(s.summary);
+      setSummaryGeneratedAt(new Date().toISOString());
+      setHasNewComments(false);
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   // Load the comment thread for whichever track is selected. Keyed on the
   // selected id so a slow response for a previously-selected track can never
@@ -88,6 +117,56 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
           {new Date(event.scheduledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
         </p>
       </div>
+
+      {/* AI Summary */}
+      {(summary || regenerating) && (
+        <div className="mb-10 border border-white/8 rounded-xl overflow-hidden">
+          <button
+            onClick={() => setSummaryOpen((v) => !v)}
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xs tracking-widest uppercase text-white/30">Session Summary</span>
+              {hasNewComments && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full border border-white/20 text-white/50">
+                  New comments available
+                </span>
+              )}
+            </div>
+            <svg className={`w-4 h-4 text-white/30 transition-transform ${summaryOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {summaryOpen && (
+            <div className="px-5 pb-5 border-t border-white/8">
+              {regenerating ? (
+                <p className="text-sm text-white/30 pt-4 animate-pulse">Generating summary…</p>
+              ) : (
+                <>
+                  <p className="text-sm text-white/60 leading-relaxed pt-4 whitespace-pre-wrap">{summary}</p>
+                  <div className="flex items-center justify-between mt-4">
+                    {summaryGeneratedAt && (
+                      <p className="text-xs text-white/20">
+                        Generated {new Date(summaryGeneratedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    )}
+                    {user && (
+                      <button
+                        onClick={handleRegenerate}
+                        disabled={regenerating}
+                        className="text-xs text-white/30 hover:text-white/60 transition-colors disabled:opacity-40"
+                      >
+                        {hasNewComments ? "↻ Update with new comments" : "↻ Regenerate"}
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row gap-8">
         {/* Track list */}

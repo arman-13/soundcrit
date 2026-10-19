@@ -14,6 +14,10 @@ public class Event
     public DateTime? CountdownStartedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+    public string? AiSummary { get; set; }
+    public DateTime? AiSummaryGeneratedAt { get; set; }
+    public DateTime? LastCommentAt { get; set; }
+
     public ICollection<EventTrack> EventTracks { get; set; } = [];
     public ICollection<EventRequest> EventRequests { get; set; } = [];
 }

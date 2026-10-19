@@ -12,12 +12,14 @@ public class EventScheduler : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<EventHub> _hub;
     private readonly ILogger<EventScheduler> _logger;
+    private readonly EventSummaryService _summary;
 
-    public EventScheduler(IServiceScopeFactory scopeFactory, IHubContext<EventHub> hub, ILogger<EventScheduler> logger)
+    public EventScheduler(IServiceScopeFactory scopeFactory, IHubContext<EventHub> hub, ILogger<EventScheduler> logger, EventSummaryService summary)
     {
         _scopeFactory = scopeFactory;
         _hub = hub;
         _logger = logger;
+        _summary = summary;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -219,6 +221,11 @@ public class EventScheduler : BackgroundService
 
         await db.SaveChangesAsync();
         await tx.CommitAsync();
+
+        // Generate AI summaries after the transaction commits — one per newly ended event.
+        // Fire-and-forget: summary generation is slow (LLM call) and must not block the tick.
+        foreach (var (eventId, signal, _) in pending.Where(p => p.Signal == "EventEnded"))
+            _ = Task.Run(() => _summary.SummarizeEventAsync(eventId));
         // The advisory lock is released here, with the commit.
 
         foreach (var (eventId, signal, payload) in pending)

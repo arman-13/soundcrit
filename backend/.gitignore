@@ -2,6 +2,8 @@
 *.db-shm
 *.db-wal
 migrations.sql
+SoundcritMcp/bin/
+SoundcritMcp/obj/
 
 # Real secrets live here — see appsettings.Development.json.example for the shape
 appsettings.Development.json

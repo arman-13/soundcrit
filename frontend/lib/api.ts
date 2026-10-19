@@ -293,6 +293,18 @@ export const postEventComment = (eventId: number, body: { content: string; event
 export const getEventComments = (eventId: number, eventTrackId: number) =>
   fetchApi<EventComment[]>(`/api/events/${eventId}/comments/${eventTrackId}`);
 
+// ── AI ────────────────────────────────────────────────────────────────────────
+export const getEventSummary = (eventId: number) =>
+  fetchApi<{ summary: string | null; generatedAt: string | null; hasNewComments: boolean }>(
+    `/api/ai/event-summary/${eventId}`
+  );
+
+export const regenerateEventSummary = (eventId: number, token: string) =>
+  fetchApi<{ summary: string }>(`/api/ai/event-summary/${eventId}/regenerate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
 export const forgotPassword = (email: string) =>
   fetchApi<void>("/api/auth/forgot-password", {
     method: "POST",
