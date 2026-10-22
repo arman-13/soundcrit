@@ -8,7 +8,7 @@ import { useState } from "react";
 
 const publicLinks = [
   { href: "/", label: "Home" },
-  { href: "/events", label: "Events" },
+  { href: "/studio/sessions", label: "Sessions" },
 ];
 
 export default function Header() {
@@ -24,7 +24,7 @@ export default function Header() {
   };
 
   const navLinks = user
-    ? [...publicLinks, { href: "/my-music", label: "Studio" }, { href: "/my-events", label: "Sessions" }]
+    ? [...publicLinks, { href: "/my-music", label: "Studio" }]
     : publicLinks;
 
   return (
@@ -52,9 +52,15 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center gap-4">
+          <Link href="/search" className="text-white/40 hover:text-white/70 transition-colors" aria-label="Search">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+            </svg>
+          </Link>
           {user ? (
             <>
-              <Link href="/profile" className="flex items-center gap-2 group" onClick={() => setMenuOpen(false)}>
+              <Link href={`/artists/${user.username}`} className="flex items-center gap-2 group" onClick={() => setMenuOpen(false)}>
                 {user.avatarUrl ? (
                   <div className="relative w-7 h-7 rounded-full overflow-hidden">
                     <Image src={user.avatarUrl} alt={user.displayName} fill className="object-cover" />

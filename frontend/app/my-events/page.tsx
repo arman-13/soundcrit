@@ -110,7 +110,7 @@ export default function MyEventsPage() {
                 <p className="text-xs text-white/30 mt-0.5">{ev.status} · {new Date(ev.scheduledAt).toLocaleDateString()}</p>
               </div>
               <div className="flex gap-2 shrink-0">
-                <Link href={`/events/${ev.id}`} className="text-xs text-white/40 hover:text-white/70 transition-colors px-3 py-1.5 border border-white/10 rounded">
+                <Link href={`/studio/sessions/${ev.id}`} className="text-xs text-white/40 hover:text-white/70 transition-colors px-3 py-1.5 border border-white/10 rounded">
                   View
                 </Link>
                 <button onClick={() => handleDelete(ev.id)} className="text-xs text-white/25 hover:text-red-400/70 transition-colors px-3 py-1.5 border border-white/8 rounded">

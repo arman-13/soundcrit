@@ -55,12 +55,15 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   const { currentTrack: playerTrack, playTrack, seekTo, setIsLive, setIsCountdown, setLiveEventId, dismiss } = useAudioPlayer();
   const router = useRouter();
 
+  const [joined, setJoined] = useState(false);
+
   useEffect(() => {
+    if (!joined) return;
     setIsLive(true);
     setLiveEventId(event.id);
     return () => { setIsCountdown(false); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [joined]);
 
   const approvedTracks = useMemo(
     () => event.tracks.filter((t) => t.status === "Approved").sort((a, b) => a.order - b.order),
@@ -225,6 +228,7 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
   // Sync on mount and on tab focus — restores playback position and countdown state
   // Full sync on mount only — restores track, elapsed, countdown
   useEffect(() => {
+    if (!joined) return;
     getEventSync(event.id).then((sync) => {
       if (sync.status === "Ended") {
         triggerEnding();
@@ -249,10 +253,11 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
       }
     }).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [event.id]);
+  }, [event.id, joined]);
 
   // Poll every 5s and on tab re-focus: catch missed CountdownStarted / EventEnded signals
   useEffect(() => {
+    if (!joined) return;
     const checkSync = () => {
       getEventSync(event.id).then((sync) => {
         if (sync.status === "Ended") {
@@ -321,6 +326,27 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
 
   const currentTrack = approvedTracks[trackIndex] ?? null;
 
+  const coverUrl = (joined ? currentTrack?.coverImageUrl : null) || event.coverImageUrl || approvedTracks[0]?.coverImageUrl;
+
+  const [baseCover, setBaseCover] = useState(coverUrl);
+  const [incomingCover, setIncomingCover] = useState<string | undefined>(undefined);
+  const [incomingVisible, setIncomingVisible] = useState(false);
+
+  useEffect(() => {
+    if (coverUrl === baseCover) return;
+    setIncomingCover(coverUrl);
+    setIncomingVisible(false);
+    const tIn = setTimeout(() => setIncomingVisible(true), 20);
+    const tDone = setTimeout(() => {
+      setBaseCover(coverUrl);
+      setIncomingCover(undefined);
+      setIncomingVisible(false);
+    }, 720);
+    return () => { clearTimeout(tIn); clearTimeout(tDone); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverUrl]);
+
+  const imageBlurred = joined;
 
   if (showEnded && endedEvent) return <EventEnded event={endedEvent} />;
   if (isEnding) return (
@@ -330,85 +356,140 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
     />
   );
 
-  return (
-    <div className="max-w-3xl mx-auto px-6 py-16 pb-28">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-        <p className="text-xs tracking-widest uppercase text-white/30">Live · {event.title}</p>
+  const bgImage = (
+    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+      <div className={`absolute inset-0 ${imageBlurred ? "blur-sm" : ""}`} style={{ transition: "filter 500ms ease, transform 500ms ease", transform: imageBlurred ? "scale(1.02)" : "scale(1)", willChange: "filter, transform" }}>
+        {/* Base image — stable bottom layer */}
+        {baseCover
+          ? <Image key={baseCover} src={baseCover} alt="" fill className="object-cover" priority />
+          : <div className="absolute inset-0 bg-[#0a0a0a]" />
+        }
+        {/* Incoming image — fades in on top */}
+        {incomingCover && (
+          <Image key={incomingCover} src={incomingCover} alt="" fill className="object-cover" style={{ opacity: incomingVisible ? 1 : 0, transition: "opacity 700ms ease" }} />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/20" />
+        <div className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${imageBlurred ? "opacity-60" : "opacity-0"}`} style={{ background: imageBlurred ? "linear-gradient(to top, black 0%, rgba(0,0,0,0.75) 40%, rgba(0,0,0,0.55) 100%)" : undefined }} />
       </div>
-      {event.description && (
-        <p className="text-sm text-white/35 leading-relaxed mb-10 max-w-lg">{event.description}</p>
-      )}
-      {!event.description && <div className="mb-10" />}
+    </div>
+  );
 
-{currentTrack ? (
-        <div className="flex flex-col md:flex-row gap-8 mb-12">
-          <div className="relative w-full md:w-56 aspect-square rounded-xl overflow-hidden bg-white/5 shrink-0">
-            <Image src={currentTrack.coverImageUrl} alt={currentTrack.title} fill className="object-cover" />
-            {isCountdown && (
-              <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                <span className="text-3xl font-light text-white/60 tabular-nums">
-                  {countdown != null ? String(Math.ceil(countdown)).padStart(2, "0") : "00"}s
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col justify-center">
-            <p className="text-xs tracking-widest uppercase text-white/25 mb-2">{currentTrack.genre}</p>
-            <h1 className="text-3xl font-light text-white/90 mb-1">{currentTrack.title}</h1>
-            <p className="text-base text-white/45 mb-2">{currentTrack.artist}</p>
-            {currentTrack.description && (
-              <p className="text-sm text-white/35 leading-relaxed mb-3 max-w-sm">{currentTrack.description}</p>
-            )}
-            {isCountdown && (
-              <p className="text-xs text-white/25 tracking-wide">Up next in {countdown != null ? String(Math.ceil(countdown)).padStart(2, "0") : "00"}s</p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <p className="text-white/30 mb-12">Waiting for tracks…</p>
-      )}
+  return (
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      {bgImage}
 
-      {/* Comments */}
-      <div className="mt-8">
-        <h2 className="text-xs tracking-widest uppercase text-white/25 mb-6">Live Comments</h2>
-        <div className="space-y-3 mb-6 max-h-64 overflow-y-auto flex flex-col">
-          {comments.map((c) => (
-            <div key={c.id} className="flex gap-3">
-              <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-xs text-white/50 shrink-0">
-                {c.displayName.charAt(0).toUpperCase()}
-              </div>
-              <div>
-                <span className="text-sm font-medium text-white/70 mr-2">{c.displayName}</span>
-                {c.trackTimestamp >= 0 && <span className="text-xs text-white/25 mr-2">{fmtTime(c.trackTimestamp)}</span>}
-                <span className="text-sm text-white/50">{c.content}</span>
-              </div>
+      <div className="relative min-h-[calc(100vh-4rem)] flex flex-col pt-12 pb-28" style={{ zIndex: 1 }}>
+
+        {/* ── Persistent header ── */}
+        <div className="max-w-6xl mx-auto px-6 w-full mb-7">
+          <p className="text-[10px] tracking-[0.22em] uppercase text-red-400/40 mb-1">
+            Hosting by {event.hostDisplayName}
+          </p>
+          <div className="relative">
+            <h1
+              onClick={joined ? () => setJoined(false) : undefined}
+              className={`font-semibold tracking-widest uppercase text-white leading-tight transition-colors ${joined ? "cursor-pointer hover:text-white/75" : ""}`}
+              style={{ fontSize: joined ? "1.25rem" : "2.25rem", opacity: joined ? 0.5 : 1, transition: "font-size 500ms ease, opacity 500ms ease" }}
+            >{event.title}</h1>
+            <div className="absolute top-0 right-0 flex gap-2 items-center">
+              {!joined && (
+                <button onClick={() => setJoined(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/30 hover:border-red-500/50 backdrop-blur-sm transition-all">
+                  <span className="text-sm font-semibold tracking-widest uppercase text-red-300">Join Live</span>
+                </button>
+              )}
+              {joined && (
+                <div className="flex items-center gap-2 px-3 py-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-sm font-semibold tracking-widest uppercase text-red-400/70">Live</span>
+                </div>
+              )}
             </div>
-          ))}
-          {comments.length === 0 && <p className="text-sm text-white/25">No comments yet.</p>}
-          <div ref={commentsEndRef} />
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-xs text-white/38 flex-wrap">
+            <span>{new Date(event.scheduledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+            {approvedTracks.length > 0 && (
+              <>
+                <span className="text-white/18">·</span>
+                <span>{approvedTracks.length} tracks</span>
+              </>
+            )}
+            {event.genres?.length > 0 && (
+              <>
+                <span className="text-white/18">·</span>
+                <span>{event.genres.slice(0, 3).join(", ")}</span>
+              </>
+            )}
+          </div>
+          {/* Song name + comment control — side by side */}
+          <div className="mt-2 flex items-end gap-8">
+            {/* Left: song name only */}
+            {(currentTrack || approvedTracks[0]) && (
+              <div className="flex-1" style={{ paddingTop: joined ? "0" : "1.40625rem", transition: "padding-top 500ms ease" }}>
+                <p className="text-[10px] tracking-[0.22em] uppercase text-red-400/40 mb-1"
+                  style={{ opacity: joined ? 1 : 0.6, transition: "opacity 500ms ease" }}>
+                  now playing
+                </p>
+                <p
+                  className="font-semibold tracking-widest uppercase text-white leading-tight"
+                  style={{
+                    fontSize: joined ? "2.25rem" : "1.125rem",
+                    opacity: joined ? 1 : 0.4,
+                    transition: "font-size 500ms ease, opacity 500ms ease",
+                  }}
+                >
+                  {isCountdown
+                    ? (approvedTracks[trackIndex + 1]?.title ?? currentTrack?.title ?? approvedTracks[0]?.title)
+                    : (currentTrack?.title ?? approvedTracks[0]?.title)}
+                </p>
+              </div>
+            )}
+            {/* Right: comment input */}
+            <div className="flex-1" style={{ opacity: joined ? 1 : 0, transition: "opacity 400ms ease", pointerEvents: joined ? "auto" : "none" }}>
+              {user ? (
+                <div className="flex gap-3">
+                  <input
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleComment(); } }}
+                    placeholder="Comment…"
+                    className="flex-1 bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors"
+                  />
+                  <label className="flex items-center gap-1.5 text-xs text-white/30 cursor-pointer">
+                    <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} className="accent-white" />
+                    Anon
+                  </label>
+                  <button onClick={handleComment} disabled={submitting || !commentText.trim()}
+                    className="bg-white text-black text-sm font-medium px-4 py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-40">
+                    Send
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-white/30"><a href="/login" className="underline underline-offset-2">Sign in</a> to comment.</p>
+              )}
+            </div>
+          </div>
+          {/* Comments — below song name, left half only */}
+          {joined && (
+            <div className="mt-16 w-1/2 space-y-3 overflow-y-auto max-h-48 pr-2" style={{ animation: "listReveal 0.4s ease 0.3s both" }}>
+              {comments.map((c) => (
+                <div key={c.id} style={{ animation: "listReveal 0.3s ease both" }}>
+                  <span className="text-sm font-medium text-white/70 mr-2">{c.displayName}</span>
+                  {c.trackTimestamp >= 0 && <span className="text-xs text-white/25 mr-2">{fmtTime(c.trackTimestamp)}</span>}
+                  <span className="text-sm text-white/50">{c.content}</span>
+                </div>
+              ))}
+              {comments.length === 0 && <p className="text-sm text-white/25">No comments yet.</p>}
+              <div ref={commentsEndRef} />
+            </div>
+          )}
         </div>
 
-        {user ? (
-          <div className="flex gap-3">
-            <input
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleComment(); }}}
-              placeholder="Comment…"
-              className="flex-1 bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors"
-            />
-            <label className="flex items-center gap-1.5 text-xs text-white/30 cursor-pointer">
-              <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} className="accent-white" />
-              Anon
-            </label>
-            <button onClick={handleComment} disabled={submitting || !commentText.trim()}
-              className="bg-white text-black text-sm font-medium px-4 py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-40">
-              Send
-            </button>
+        {/* ── Body ── */}
+        {event.description && !joined && (
+          <div className="max-w-6xl mx-auto px-6 w-full mt-6" style={{ animation: "listReveal 0.4s ease forwards" }}>
+            <p className="text-sm text-white/58 leading-relaxed">{event.description}</p>
           </div>
-        ) : (
-          <p className="text-sm text-white/30"><a href="/login" className="underline underline-offset-2">Sign in</a> to comment.</p>
         )}
       </div>
     </div>

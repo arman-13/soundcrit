@@ -26,7 +26,7 @@ export default async function HomePage() {
     <div>
       <AutoRefresh intervalMs={15000} />
       {/* Hero */}
-      <section className="flex flex-col items-center justify-center text-center px-6 pt-14 pb-8">
+      <section className="max-w-6xl mx-auto px-6 pt-14 pb-8">
         <h1 className="text-3xl md:text-5xl font-light tracking-tight text-white/90 leading-tight mb-5">
           Music with a story
         </h1>
@@ -41,14 +41,14 @@ export default async function HomePage() {
         {(liveEvents.length > 0 || upcomingEvents.length > 0) && (
           <section>
             <div className="flex items-baseline justify-between mb-8">
-              <Link href="/events?from=home" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors">Sessions</Link>
-              <Link href="/events?from=home" className="text-xs text-white/35 hover:text-white/70 transition-colors">
+              <Link href="/studio/sessions?from=home" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors">Sessions</Link>
+              <Link href="/studio/sessions?from=home" className="text-xs text-white/35 hover:text-white/70 transition-colors">
                 See all →
               </Link>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {[...liveEvents, ...upcomingEvents].map((ev) => (
-                <Link key={ev.id} href={`/events/${ev.id}`} className={`group relative rounded-xl overflow-hidden border border-white/8 hover:border-white/20 transition-colors shrink-0 w-56 ${ev.status === "Live" ? "bg-black" : "bg-white/[0.02]"}`}>
+                <Link key={ev.id} href={`/studio/sessions/${ev.id}`} className={`group relative rounded-xl overflow-hidden border border-white/8 hover:border-white/20 transition-colors shrink-0 w-56 ${ev.status === "Live" ? "bg-black" : "bg-white/[0.02]"}`}>
                   <EventCardCover
                     eventId={ev.id}
                     coverImageUrl={ev.coverImageUrl}

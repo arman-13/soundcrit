@@ -26,16 +26,18 @@ export default async function ArtistPage({ params }: { params: Promise<{ usernam
 
   const tracks = tracksRes.data;
 
+  const heroCover = profile.avatarUrl ?? tracks[0]?.coverImageUrl ?? null;
+
   return (
     <div>
 
       {/* Artist hero — bleeds behind sticky nav */}
       <header className="relative w-full h-72 md:h-96 mb-10 -mt-16" style={{ background: "linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%)" }}>
-        {/* Photo */}
-        {profile.avatarUrl ? (
+        {/* Photo / cover fallback */}
+        {heroCover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={profile.avatarUrl}
+            src={heroCover}
             alt={profile.displayName}
             className="absolute inset-0 w-full h-full object-cover object-center"
           />
@@ -117,7 +119,7 @@ export default async function ArtistPage({ params }: { params: Promise<{ usernam
             {artistEvents.map((ev) => (
               <Link
                 key={ev.id}
-                href={`/events/${ev.id}`}
+                href={`/studio/sessions/${ev.id}`}
                 className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-white/5 transition-colors group"
               >
                 {ev.coverImageUrl ? (

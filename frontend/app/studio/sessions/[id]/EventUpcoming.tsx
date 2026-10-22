@@ -51,7 +51,7 @@ function BigCountdown({ scheduledAt, onExpire }: { scheduledAt: string; onExpire
   }, [scheduledAt, onExpire]);
 
   return (
-    <div className="flex gap-6 justify-center my-12">
+    <div className="flex gap-6 mt-3 mb-12">
       {[["d", parts.d], ["h", parts.h], ["m", parts.m], ["s", parts.s]].map(([label, val]) => (
         <div key={label as string} className="text-center">
           <p className="text-5xl font-light text-white/90 tabular-nums">{String(val).padStart(2, "0")}</p>
@@ -101,6 +101,8 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
   const [trackSubmitted, setTrackSubmitted] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(!!newTrackId);
   const [submitMode, setSubmitMode] = useState<"existing" | null>(newTrackId ? "existing" : null);
+  const [joinOpen, setJoinOpen] = useState(false);
+  const imageBlurred = joinOpen || submitOpen;
 
   const isHost = user?.id === event.hostId;
   const isApproved = !isHost && requestStatus === "Approved";
@@ -233,8 +235,27 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
     }
   };
 
+  const bgImage = (
+    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+      <div className={`absolute inset-0 duration-500 ${imageBlurred ? "blur-sm" : ""}`} style={{ transition: "filter 500ms ease, transform 500ms ease", transform: imageBlurred ? "scale(1.02)" : "scale(1)", willChange: "filter, transform" }}>
+        {coverUrl ? (
+          <Image src={coverUrl} alt="" fill className="object-cover" priority />
+        ) : (
+          <div className="absolute inset-0 bg-[#0a0a0a]" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-black/20" />
+        <div className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${imageBlurred ? "opacity-60" : "opacity-0"}`} style={{ background: imageBlurred ? "linear-gradient(to top, black 0%, rgba(0,0,0,0.75) 40%, rgba(0,0,0,0.55) 100%)" : undefined }} />
+      </div>
+    </div>
+  );
+
   return (
-    <div className="max-w-2xl mx-auto px-6 py-20 text-center">
+    <div className="relative min-h-[calc(100vh-4rem)]">
+      {bgImage}
+
+      <input ref={coverInputRef} type="file" accept="image/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverChange(f); }} />
+
       {toasts.length > 0 && (
         <div className="fixed bottom-24 right-6 z-50 flex flex-col gap-2 items-end">
           {toasts.map((t) => (
@@ -244,213 +265,221 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
           ))}
         </div>
       )}
-      {(coverUrl || isHost) && (
-        <div className="relative w-48 h-48 mx-auto rounded-xl overflow-hidden mb-8 group">
-          {coverUrl
-            ? <Image src={coverUrl} alt={event.title} fill className="object-cover opacity-60" />
-            : <div className="absolute inset-0 bg-white/5" />
-          }
-          {isHost && (
-            <>
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverChange(f); }}
-              />
-              <button
-                onClick={() => coverInputRef.current?.click()}
-                disabled={coverUploading}
-                className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-wait"
-              >
-                {coverUploading ? (
-                  <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4-4m0 0l4-4m-4 4h12M4 20h16" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12" />
-                    </svg>
-                    <span className="text-xs text-white/60">Change cover</span>
-                  </>
-                )}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-      <p className="text-xs tracking-widest uppercase text-white/30 mb-3">Upcoming Session</p>
-      <h1 className="text-4xl font-light text-white/90 mb-4">{event.title}</h1>
-      {event.description && <p className="text-sm text-white/45 leading-relaxed mb-6 max-w-md mx-auto">{event.description}</p>}
 
-      <div className="flex items-center justify-center gap-2 mb-2 text-sm text-white/40">
-        {event.hostAvatarUrl && (
-          <div className="relative w-5 h-5 rounded-full overflow-hidden">
-            <Image src={event.hostAvatarUrl} alt="" fill className="object-cover" />
-          </div>
-        )}
-        <span>Hosted by {event.hostDisplayName}</span>
-      </div>
+      <div className="relative min-h-[calc(100vh-4rem)] flex flex-col pt-12 pb-28" style={{ zIndex: 1 }}>
 
-      <BigCountdown scheduledAt={scheduledAt} onExpire={onEventStarted} />
-
-      {isHost && (
-        <div className="mb-6">
-          {editingDate ? (
-            <div className="flex items-center justify-center gap-2">
-              <input
-                type="datetime-local"
-                value={newDateValue}
-                onChange={(e) => setNewDateValue(e.target.value)}
-                className="bg-white/5 border border-white/15 rounded px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:border-white/30 transition-colors"
-              />
-              <button
-                onClick={handleDateSave}
-                disabled={dateSaving || !newDateValue}
-                className="text-xs px-3 py-1.5 rounded border border-white/20 text-white/60 hover:border-white/40 transition-colors disabled:opacity-40"
-              >{dateSaving ? "Saving…" : "Save"}</button>
-              <button
-                onClick={() => setEditingDate(false)}
-                className="text-xs text-white/25 hover:text-white/50 transition-colors"
-              >Cancel</button>
-            </div>
-          ) : (
-            <button
-              onClick={() => { setNewDateValue(toLocalDatetimeValue(scheduledAt)); setEditingDate(true); }}
-              className="text-xs text-white/25 hover:text-white/50 transition-colors"
+        {/* ── Persistent header ── */}
+        <div className="max-w-6xl mx-auto px-6 w-full mb-7">
+          <p className="text-[10px] tracking-[0.22em] uppercase text-yellow-400/40 mb-3">
+            {(joinOpen || submitOpen) ? (
+              <button onClick={() => { setJoinOpen(false); setSubmitOpen(false); setSubmitMode(null); }} className="hover:text-white/65 transition-colors" style={{ background: "none", border: "none", cursor: "pointer", font: "inherit" }}>← Back</button>
+            ) : `Hosting by ${event.hostDisplayName}`}
+          </p>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <h1
+              onClick={(joinOpen || submitOpen) ? () => { setJoinOpen(false); setSubmitOpen(false); setSubmitMode(null); } : undefined}
+              className={`text-3xl md:text-4xl font-semibold tracking-widest uppercase text-white leading-tight transition-colors ${(joinOpen || submitOpen) ? "cursor-pointer hover:text-white/75" : ""}`}
             >
-              Edit date & time
-            </button>
-          )}
-        </div>
-      )}
-
-      <p className="text-xs text-white/25 mb-10">
-        {event.trackCount} tracks{event.genres?.length > 0 ? ` · ${event.genres.slice(0, 3).join(" · ")}` : ""}
-      </p>
-
-      {!isHost && user && !requestStatus && (
-        <div className="max-w-sm mx-auto space-y-3">
-          <textarea
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            placeholder="Why do you want to join? (optional)"
-            rows={2}
-            className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors resize-none"
-          />
-          <button onClick={handleRequest} disabled={submitting}
-            className="w-full bg-white text-black text-sm font-medium py-3 rounded hover:bg-white/90 transition-colors disabled:opacity-50">
-            {submitting ? "Requesting…" : "Request to Join"}
-          </button>
-        </div>
-      )}
-      {requestStatus === "Pending" && <p className="text-sm text-white/40">Request sent — waiting for approval.</p>}
-      {requestStatus === "Rejected" && <p className="text-sm text-red-400/60">Your request was not approved.</p>}
-      {!user && <Link href="/login" className="text-sm text-white/40 underline underline-offset-2">Sign in to request access</Link>}
-
-      {/* Track submission — for approved members and host */}
-      {(isApproved || isHost) && (
-        <div className="mt-16 max-w-sm mx-auto text-left border border-white/10 rounded-xl overflow-hidden">
-          <button
-            onClick={() => { setSubmitOpen((o) => !o); setSubmitMode(null); }}
-            className="w-full flex items-center justify-between px-5 py-4 text-sm text-white/60 hover:text-white/80 transition-colors"
-          >
-            <span className="tracking-widest uppercase text-xs text-white/40">{isHost ? "Add Tracks" : "Submit a Track"}</span>
-            <span className={`transition-transform duration-200 ${submitOpen ? "rotate-180" : ""}`}>▾</span>
-          </button>
-
-          {submitOpen && (
-            <div className="px-5 pb-5 border-t border-white/8">
-              {trackSubmitted ? (
-                <div className="py-5 text-center space-y-1">
-                  <p className="text-2xl">🎧</p>
-                  <p className="text-sm text-white/70">You&apos;re in the mix.</p>
-                  <p className="text-xs text-white/30">Your track is queued — one submission per session.</p>
-                </div>
-              ) : submitMode === null ? (
-                <div className="py-4 space-y-3">
+              {event.title}
+            </h1>
+            {/* Action buttons */}
+            <div className="flex gap-2 items-center">
+              {/* Not logged in */}
+              {!user && (
+                <Link href="/login"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/18 border border-white/15 hover:border-white/30 backdrop-blur-sm transition-all">
+                  <span className="text-sm font-semibold tracking-widest uppercase text-white/72">Request Join</span>
+                </Link>
+              )}
+              {/* Logged in, not host, no request yet */}
+              {user && !isHost && !requestStatus && (
+                <button
+                  onClick={() => setJoinOpen((o) => !o)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/18 border border-white/15 hover:border-white/30 backdrop-blur-sm transition-all"
+                >
+                  <span className="text-sm font-semibold tracking-widest uppercase text-white/72">Request Join</span>
+                </button>
+              )}
+              {/* Pending */}
+              {!isHost && requestStatus === "Pending" && (
+                <span className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-sm font-semibold tracking-widest uppercase text-white/30 cursor-default">
+                  Waiting
+                </span>
+              )}
+              {/* Approved — show submit track or "track submitted" */}
+              {isApproved && (
+                trackSubmitted ? (
+                  <span className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-white/10 text-sm font-semibold tracking-widest uppercase text-white/30 cursor-default">
+                    Track Submitted
+                  </span>
+                ) : (
                   <button
-                    onClick={() => setSubmitMode("existing")}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/8 hover:border-white/20 transition-colors text-left"
+                    onClick={() => { setSubmitOpen((o) => !o); setSubmitMode(null); }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/18 border border-white/15 hover:border-white/30 backdrop-blur-sm transition-all"
                   >
-                    <div>
-                      <p className="text-sm text-white/70">Use an existing track</p>
-                      <p className="text-xs text-white/30 mt-0.5">Pick from your uploaded songs</p>
-                    </div>
+                    <svg className="w-4 h-4 text-white/55" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span className="text-sm font-semibold tracking-widest uppercase text-white/72">Submit Track</span>
                   </button>
-                  <Link
-                    href={`/my-music?returnTo=/events/${event.id}&upload=1`}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/8 hover:border-white/20 transition-colors text-left"
-                  >
-                    <div>
-                      <p className="text-sm text-white/70">Upload a new track</p>
-                      <p className="text-xs text-white/30 mt-0.5">You&apos;ll be brought back here after uploading</p>
-                    </div>
-                  </Link>
-                </div>
-              ) : (
-                <div className="py-4 space-y-4">
-                  <button onClick={() => setSubmitMode(null)} className="text-xs text-white/30 hover:text-white/50 transition-colors">← Back</button>
-                  <select
-                    value={selectedTrackId}
-                    onChange={(e) => setSelectedTrackId(e.target.value ? Number(e.target.value) : "")}
-                    className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors"
-                  >
-                    <option value="">Select one of your tracks…</option>
-                    {availableTracks.map((t) => (
-                      <option key={t.id} value={t.id}>{t.title}</option>
-                    ))}
-                  </select>
-                  <label className="flex items-center gap-2 text-sm text-white/45 cursor-pointer">
-                    <input type="checkbox" checked={uploadToProfile} onChange={(e) => setUploadToProfile(e.target.checked)} className="accent-white" />
-                    Publish to my profile after the session
-                  </label>
-                  <button
-                    onClick={handleTrackSubmit}
-                    disabled={trackSubmitting || !selectedTrackId}
-                    className="w-full bg-white text-black text-sm font-medium py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-40"
-                  >
-                    {trackSubmitting ? "Submitting…" : "Submit Track"}
-                  </button>
-                </div>
+                )
+              )}
+              {/* Host */}
+              {isHost && (
+                <button
+                  onClick={() => { setSubmitOpen((o) => !o); setSubmitMode(null); }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/18 border border-white/15 hover:border-white/30 backdrop-blur-sm transition-all"
+                >
+                  <svg className="w-4 h-4 text-white/55" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  <span className="text-sm font-semibold tracking-widest uppercase text-white/72">Add Track</span>
+                </button>
               )}
             </div>
-          )}
-        </div>
-      )}
-
-      {isHost && (
-        <div className="mt-12 text-left space-y-10">
-          <div>
-            <h2 className="text-xs tracking-widest uppercase text-white/25 mb-4">Join Requests</h2>
-            {requestsLoading ? (
-              <div className="flex items-center gap-2 py-2">
-                <span className="w-3 h-3 rounded-full border border-white/20 border-t-white/60 animate-spin" />
-              </div>
-            ) : requests.length === 0 ? (
-              <p className="text-sm text-white/25">No requests yet.</p>
+          </div>
+          <div className="flex items-center gap-2 mt-2 text-xs text-white/38 flex-wrap">
+            {isHost ? (
+              <button onClick={() => setEditingDate((v) => !v)} className="hover:text-white/60 transition-colors underline-offset-2 hover:underline">
+                {new Date(event.scheduledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+              </button>
             ) : (
-              <div className="space-y-3">
-                {requests.map((r) => (
-                  <RequestRow key={r.id} request={r} eventId={event.id} token={token!}
-                    onUpdate={(id, status) => setRequests((prev) => prev.map((x) => x.id === id ? { ...x, status } : x))} />
-                ))}
-              </div>
+              <span>{new Date(event.scheduledAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+            )}
+            {event.trackCount > 0 && (
+              <>
+                <span className="text-white/18">·</span>
+                <span>{event.trackCount} tracks</span>
+              </>
+            )}
+            {event.genres?.length > 0 && (
+              <>
+                <span className="text-white/18">·</span>
+                <span>{event.genres.slice(0, 3).join(", ")}</span>
+              </>
             )}
           </div>
 
-          <TrackSubmissionsList
-            submissions={submissions}
-            loading={submissionsLoading}
-            eventId={event.id}
-            token={token!}
-            onUpdate={(id, status) => setSubmissions((prev) => prev.map((x) => x.id === id ? { ...x, status } : x))}
-            onReorder={setSubmissions}
-            onDelete={(id) => setSubmissions((prev) => prev.filter((x) => x.id !== id))}
-          />
         </div>
-      )}
+
+        {/* ── Body ── */}
+        <div className="max-w-6xl mx-auto px-6 w-full" style={{ animation: "listReveal 0.4s ease forwards" }}>
+
+            {/* Description area — fades out when panel opens; form overlays this space absolutely */}
+            <div className="relative mb-36">
+              {event.description && (
+                <p className="text-sm text-white/58 leading-relaxed transition-opacity duration-300" style={{ opacity: joinOpen || submitOpen ? 0 : 1 }}>{event.description}</p>
+              )}
+
+              {/* Join request form — overlays description space, panel open only */}
+              {!isHost && user && !requestStatus && joinOpen && (
+                <div className="absolute inset-0 max-w-sm space-y-3" style={{ animation: "listReveal 0.4s ease both" }}>
+                  <textarea value={message} onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Why do you want to join? (optional)" rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors resize-none" />
+                  <button onClick={handleRequest} disabled={submitting}
+                    className="px-6 py-2.5 rounded border border-white/20 text-sm text-white/60 hover:border-white/40 hover:text-white/80 transition-colors disabled:opacity-50">
+                    {submitting ? "Requesting…" : "Send Request"}
+                  </button>
+                </div>
+              )}
+
+              {/* Track submission form — overlays description space, panel open only */}
+              {(isApproved || isHost) && submitOpen && (
+                <div className="absolute inset-0" style={{ animation: "listReveal 0.4s ease both" }}>
+                  {trackSubmitted ? (
+                    <div className="space-y-1">
+                      <p className="text-sm text-white/70">You&apos;re in the mix.</p>
+                      <p className="text-xs text-white/30">Your track is queued — one submission per session.</p>
+                    </div>
+                  ) : submitMode === null ? (
+                    <div className="flex flex-col gap-2 max-w-sm">
+                      <button onClick={() => setSubmitMode("existing")}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/8 hover:border-white/20 transition-colors text-left">
+                        <div>
+                          <p className="text-sm text-white/70">Use an existing track</p>
+                          <p className="text-xs text-white/30 mt-0.5">Pick from your uploaded songs</p>
+                        </div>
+                      </button>
+                      <Link href={`/my-music?returnTo=/studio/sessions/${event.id}&upload=1`}
+                        className="flex items-center gap-3 px-4 py-3 rounded-lg bg-white/[0.03] border border-white/8 hover:border-white/20 transition-colors text-left">
+                        <div>
+                          <p className="text-sm text-white/70">Upload a new track</p>
+                          <p className="text-xs text-white/30 mt-0.5">You&apos;ll be brought back here after uploading</p>
+                        </div>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="max-w-sm space-y-4">
+                      <button onClick={() => setSubmitMode(null)} className="text-xs text-white/30 hover:text-white/50 transition-colors">← Back</button>
+                      <select value={selectedTrackId}
+                        onChange={(e) => setSelectedTrackId(e.target.value ? Number(e.target.value) : "")}
+                        className="w-full bg-white/5 border border-white/10 rounded px-4 py-2.5 text-sm text-white/75 focus:outline-none focus:border-white/25 transition-colors">
+                        <option value="">Select one of your tracks…</option>
+                        {availableTracks.map((t) => (
+                          <option key={t.id} value={t.id}>{t.title}</option>
+                        ))}
+                      </select>
+                      <label className="flex items-center gap-2 text-sm text-white/45 cursor-pointer">
+                        <input type="checkbox" checked={uploadToProfile} onChange={(e) => setUploadToProfile(e.target.checked)} className="accent-white" />
+                        Publish to my profile after the session
+                      </label>
+                      <button onClick={handleTrackSubmit} disabled={trackSubmitting || !selectedTrackId}
+                        className="w-full bg-white text-black text-sm font-medium py-2.5 rounded hover:bg-white/90 transition-colors disabled:opacity-40">
+                        {trackSubmitting ? "Submitting…" : "Submit Track"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Countdown block — sealed, never moves */}
+            <div>
+              <p className="text-[11px] tracking-widest uppercase text-white/30 mb-1">Starting in</p>
+              <BigCountdown scheduledAt={scheduledAt} onExpire={onEventStarted} />
+
+              {isHost && editingDate && (
+                <div className="flex items-center gap-2 mt-2">
+                  <input type="datetime-local" value={newDateValue} onChange={(e) => setNewDateValue(e.target.value)}
+                    className="bg-white/5 border border-white/15 rounded px-3 py-1.5 text-sm text-white/70 focus:outline-none focus:border-white/30 transition-colors" />
+                  <button onClick={handleDateSave} disabled={dateSaving || !newDateValue}
+                    className="text-xs px-3 py-1.5 rounded border border-white/20 text-white/60 hover:border-white/40 transition-colors disabled:opacity-40">
+                    {dateSaving ? "Saving…" : "Save"}
+                  </button>
+                  <button onClick={() => setEditingDate(false)} className="text-xs text-white/25 hover:text-white/50 transition-colors">Cancel</button>
+                </div>
+              )}
+            </div>
+
+            {requestStatus === "Rejected" && <p className="text-sm text-red-400/60">Your request was not approved.</p>}
+
+            {/* Host management */}
+            {isHost && (
+              <div className="space-y-10">
+                <div>
+                  <p className="text-[11px] tracking-widest uppercase text-white/30 mb-4">Join Requests</p>
+                  {requestsLoading ? (
+                    <span className="w-3 h-3 rounded-full border border-white/20 border-t-white/60 animate-spin inline-block" />
+                  ) : requests.length === 0 ? (
+                    <p className="text-sm text-white/25">No requests yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {requests.map((r) => (
+                        <RequestRow key={r.id} request={r} eventId={event.id} token={token!}
+                          onUpdate={(id, status) => setRequests((prev) => prev.map((x) => x.id === id ? { ...x, status } : x))} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <TrackSubmissionsList submissions={submissions} loading={submissionsLoading} eventId={event.id} token={token!}
+                  onUpdate={(id, status) => setSubmissions((prev) => prev.map((x) => x.id === id ? { ...x, status } : x))}
+                  onReorder={setSubmissions} onDelete={(id) => setSubmissions((prev) => prev.filter((x) => x.id !== id))} />
+              </div>
+            )}
+
+        </div>
+      </div>
     </div>
   );
 }
