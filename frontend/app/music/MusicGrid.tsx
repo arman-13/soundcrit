@@ -26,7 +26,7 @@ export default function MusicGrid({ tracks }: { tracks: Track[] }) {
         return (
           <div
             key={track.id}
-            className={`flex items-center gap-5 py-4 group transition-colors ${isActive ? "opacity-100" : "opacity-70 hover:opacity-100"}`}
+            className={`flex items-center gap-4 py-2.5 group transition-colors ${isActive ? "opacity-100" : "opacity-70 hover:opacity-100"}`}
           >
             {/* Cover + play button */}
             <div className="relative w-11 h-11 shrink-0 rounded overflow-hidden bg-white/5">

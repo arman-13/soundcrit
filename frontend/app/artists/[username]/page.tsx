@@ -6,6 +6,7 @@ import FollowButton from "./FollowButton";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import AlbumCard from "@/components/AlbumCard";
 
 export default async function ArtistPage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
@@ -87,25 +88,9 @@ export default async function ArtistPage({ params }: { params: Promise<{ usernam
           <h2 className="text-xs tracking-widest uppercase text-white/25 mb-5">Albums</h2>
           <div className="flex flex-wrap gap-6">
             {albums.map((album) => (
-              <Link key={album.id} href={`/albums/${album.id}`} className="group w-36">
-                <div className="relative aspect-square rounded overflow-hidden bg-white/5 mb-3">
-                  {album.coverImageUrl && (
-                    <Image
-                      src={album.coverImageUrl}
-                      alt={album.title}
-                      fill
-                      className="object-cover opacity-70 group-hover:opacity-90 transition-opacity"
-                    />
-                  )}
-                </div>
-                <p className="text-sm text-white/75 group-hover:text-white transition-colors truncate">
-                  {album.title}
-                </p>
-                <p className="text-xs text-white/30 mt-0.5">
-                  {new Date(album.releasedAt).getFullYear()}
-                  {album.trackCount != null ? ` · ${album.trackCount} tracks` : ""}
-                </p>
-              </Link>
+              <div key={album.id} className="w-36">
+                <AlbumCard album={album} />
+              </div>
             ))}
           </div>
         </section>

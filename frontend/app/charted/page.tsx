@@ -10,9 +10,8 @@ export default async function ChartedPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-20">
       <BackButton />
-      <div className="mb-16">
-        <p className="text-xs tracking-widest uppercase text-white/30 mb-4">Most Played</p>
-        <h1 className="text-4xl font-light text-white/90">Charted</h1>
+      <div className="mb-6">
+        <p className="text-xs tracking-widest uppercase text-white/30">Charted</p>
       </div>
 
       {tracks.length === 0 ? (

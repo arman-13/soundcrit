@@ -4,6 +4,8 @@ import { getAlbums, getChartedTracks, getTracks, getEvents } from "@/lib/api";
 import TrackCard from "@/components/TrackCard";
 import ChartedRow from "@/components/ChartedRow";
 import AutoRefresh from "@/components/AutoRefresh";
+import CyclingSubtitle from "@/components/CyclingSubtitle";
+import AlbumCard from "@/components/AlbumCard";
 import EventCardCover from "@/components/EventCardCover";
 import EventTimeLabel from "@/components/EventTimeLabel";
 import Image from "next/image";
@@ -30,9 +32,7 @@ export default async function HomePage() {
         <h1 className="text-3xl md:text-5xl font-light tracking-tight text-white/90 leading-tight mb-5">
           Music with a story
         </h1>
-        <p className="text-base text-white/40 leading-relaxed" style={{ maxWidth: 480 }}>
-          Listen live with others — every session is saved as a record
-        </p>
+        <CyclingSubtitle />
       </section>
 
       <div className="max-w-6xl mx-auto px-6 pb-20 space-y-14">
@@ -94,22 +94,9 @@ export default async function HomePage() {
             <Link href="/albums?from=home" className="text-xs tracking-widest uppercase text-white/30 hover:text-white/60 transition-colors mb-8 inline-block">Albums</Link>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {albums.map((album) => (
-                <Link key={album.id} href={`/albums/${album.id}`} className="group shrink-0 w-36">
-                  <div className="relative aspect-square rounded overflow-hidden mb-3 bg-white/5">
-                    <Image
-                      src={album.coverImageUrl}
-                      alt={album.title}
-                      fill
-                      className="object-cover opacity-75 group-hover:opacity-95 transition-opacity"
-                    />
-                  </div>
-                  <h3 className="text-sm font-medium text-white/75 group-hover:text-white transition-colors truncate">
-                    {album.title}
-                  </h3>
-                  <p className="text-xs text-white/30 mt-0.5">
-                    {new Date(album.releasedAt).getFullYear()}
-                  </p>
-                </Link>
+                <div key={album.id} className="shrink-0 w-36">
+                  <AlbumCard album={album} />
+                </div>
               ))}
             </div>
           </section>

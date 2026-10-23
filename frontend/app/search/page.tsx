@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import TrackCard from "@/components/TrackCard";
+import AlbumCard from "@/components/AlbumCard";
 
 function SearchInner() {
   const searchParams = useSearchParams();
@@ -167,24 +168,9 @@ function SearchInner() {
           </p>
           <div className="flex flex-wrap gap-4">
             {filteredAlbums.map((album) => (
-              <Link key={album.id} href={`/albums/${album.id}`} className="group w-32">
-                <div className="relative aspect-square rounded overflow-hidden mb-2 bg-white/5">
-                  {album.coverImageUrl && (
-                    <Image
-                      src={album.coverImageUrl}
-                      alt={album.title}
-                      fill
-                      className="object-cover opacity-70 group-hover:opacity-90 transition-opacity"
-                    />
-                  )}
-                </div>
-                <p className="text-sm text-white/70 group-hover:text-white transition-colors truncate">
-                  {album.title}
-                </p>
-                <p className="text-xs text-white/30 mt-0.5">
-                  {new Date(album.releasedAt).getFullYear()}
-                </p>
-              </Link>
+              <div key={album.id} className="w-32">
+                <AlbumCard album={album} />
+              </div>
             ))}
           </div>
         </section>

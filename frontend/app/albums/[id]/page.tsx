@@ -5,6 +5,7 @@ import AlbumTrackList from "./AlbumTrackList";
 import AlbumComments from "./AlbumComments";
 import { notFound } from "next/navigation";
 import Image from "next/image";
+import AlbumPlayButtons from "./AlbumPlayButtons";
 
 export default async function AlbumPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,7 +39,7 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
         <div className="relative w-full md:w-56 aspect-square rounded-lg overflow-hidden bg-white/5 shrink-0">
           <Image src={album.coverImageUrl} alt={album.title} fill className="object-cover" priority />
         </div>
-        <div className="flex flex-col justify-start">
+        <div className="flex flex-col justify-between py-1">
           <h1 className="text-3xl md:text-4xl font-light text-white/90 leading-tight mb-2">{album.title}</h1>
           {artist && <p className="text-sm text-white/60 mb-3">{artist}</p>}
           <p className="text-sm text-white/30 mb-4">
@@ -48,8 +49,9 @@ export default async function AlbumPage({ params }: { params: Promise<{ id: stri
             {totalSeconds > 0 && ` · ${totalLength}`}
           </p>
           {album.description && (
-            <p className="text-sm text-white/45 leading-relaxed">{album.description}</p>
+            <p className="text-sm text-white/45 leading-relaxed mb-4">{album.description}</p>
           )}
+          <AlbumPlayButtons tracks={album.tracks} />
         </div>
       </div>
 

@@ -26,14 +26,14 @@ export default function TrackCard({ track, queue }: Props) {
   const moods = track.mood?.split(",").map((m) => m.trim()).filter(Boolean) ?? [];
 
   return (
-    <div className={`group relative rounded-lg overflow-hidden bg-white/[0.03] border transition-colors ${isActive ? "border-white/20" : "border-white/5 hover:border-white/15"}`}>
+    <div className="group relative rounded-lg overflow-hidden bg-transparent">
       {/* Cover */}
-      <Link href={`/tracks/${track.id}`} className="block relative aspect-square">
+      <Link href={`/tracks/${track.id}`} className="block relative aspect-square rounded-lg overflow-hidden">
         <Image
           src={track.coverImageUrl}
           alt={track.title}
           fill
-          className={`object-cover transition-opacity ${isActive ? "opacity-90" : "opacity-60 group-hover:opacity-80"}`}
+          className={`object-cover transition-opacity ${isActive ? "opacity-95" : "opacity-75 group-hover:opacity-95"}`}
         />
         {/* Play overlay */}
         <button

@@ -21,7 +21,7 @@ export default function ChartedRow({ track, rank, queue }: Props) {
   };
 
   return (
-    <div className={`group flex items-center gap-4 px-4 py-3 rounded-lg transition-colors ${isActive ? "bg-white/8" : "hover:bg-white/5"}`}>
+    <div className={`group flex items-center gap-3 px-2 py-2 rounded-lg transition-colors ${isActive ? "bg-white/8" : "hover:bg-white/5"}`}>
       <span className="w-5 text-center text-sm font-light text-white/25 shrink-0">{rank}</span>
 
       <button onClick={handlePlay} className="relative w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5">
