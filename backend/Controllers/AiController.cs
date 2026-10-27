@@ -3,6 +3,7 @@ using Backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace Backend.Controllers;
 
@@ -11,11 +12,13 @@ namespace Backend.Controllers;
 public class AiController : ControllerBase
 {
     private readonly EventSummaryService _summary;
+    private readonly ArtistRecapService _recap;
     private readonly AppDbContext _db;
 
-    public AiController(EventSummaryService summary, AppDbContext db)
+    public AiController(EventSummaryService summary, ArtistRecapService recap, AppDbContext db)
     {
         _summary = summary;
+        _recap = recap;
         _db = db;
     }
 
@@ -34,6 +37,27 @@ public class AiController : ControllerBase
             summary            = ev.AiSummary,
             generatedAt        = ev.AiSummaryGeneratedAt,
             hasNewComments,
+        });
+    }
+
+    // Artist recap — personalized summary of comments on the artist's tracks across recent sessions
+    [Authorize]
+    [HttpGet("artist-recap")]
+    public async Task<IActionResult> GetArtistRecap()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
+        var result = await _recap.GenerateRecapAsync(userId);
+        return Ok(new
+        {
+            recap    = result.Combined,
+            sessions = result.Sessions.Select(s => new
+            {
+                eventId    = s.EventId,
+                title      = s.Title,
+                trackRecap = s.TrackRecap,
+            }),
         });
     }
 

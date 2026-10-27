@@ -7,7 +7,7 @@ import {
   getAllTracksAdmin, deleteTrack, updateTrack,
   getMyAlbums, createAlbum, updateAlbum, deleteAlbum,
   createTrack, addTrackToAlbum, getAlbum, removeTrackFromAlbum, reorderAlbumTracks,
-  getEvents, createEvent, deleteEvent, updateEvent,
+  getEvents, createEvent, deleteEvent, updateEvent, getArtistRecap,
 } from "@/lib/api";
 import { Album, AlbumTrackDto, Track, LiveEvent } from "@/types";
 import Image from "next/image";
@@ -36,6 +36,12 @@ function MyMusicPageInner() {
   const searchParams = useSearchParams();
   const returnTo = searchParams.get("returnTo");
   const [view, setView] = useState<View>(searchParams.get("upload") === "1" ? "upload" : "home");
+  const [sidebarRevealed, setSidebarRevealed] = useState(searchParams.get("upload") === "1");
+
+  const navigateTo = useCallback((v: View) => {
+    setView(v);
+    setSidebarRevealed(true);
+  }, []);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
@@ -200,12 +206,16 @@ function MyMusicPageInner() {
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-6 flex">
       {/* Sidebar */}
-      <aside className="w-44 shrink-0 pt-12 pr-8 flex flex-col gap-1">
+      <aside className={`w-44 shrink-0 pt-12 pr-8 flex flex-col gap-1 transition-opacity duration-500 ${!sidebarRevealed ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+        <button onClick={() => navigateTo("home")}
+          className={`text-left text-sm py-2 mb-4 rounded transition-colors ${view === "home" ? "text-white" : "text-white/40 hover:text-white/70"}`}>
+          Home
+        </button>
         <p className="text-[10px] tracking-widest uppercase text-white/20 mb-1">Library</p>
         {(["tracks", "albums"] as const).map((v) => {
           const labels: Record<string, string> = { tracks: "Tracks", albums: "Albums" };
           return (
-            <button key={v} onClick={() => setView(v)}
+            <button key={v} onClick={() => navigateTo(v)}
               className={`text-left text-sm py-2 rounded transition-colors ${
                 view === v ? "text-white" : "text-white/40 hover:text-white/70"
               }`}>
@@ -214,14 +224,14 @@ function MyMusicPageInner() {
           );
         })}
         <p className="text-[10px] tracking-widest uppercase text-white/20 mb-1 mt-6">Sessions</p>
-        <button onClick={() => setView("sessions")}
+        <button onClick={() => navigateTo("sessions")}
           className={`text-left text-sm py-2 rounded transition-colors ${
             view === "sessions" || view === "create-session" || view === "edit-session" ? "text-white" : "text-white/40 hover:text-white/70"
           }`}>
           Sessions
         </button>
         <p className="text-[10px] tracking-widest uppercase text-white/20 mb-1 mt-6">Account</p>
-        <button onClick={() => setView("profile")}
+        <button onClick={() => navigateTo("profile")}
           className={`text-left text-sm py-2 rounded transition-colors ${view === "profile" ? "text-white" : "text-white/40 hover:text-white/70"}`}>
           My Profile
         </button>
@@ -229,7 +239,7 @@ function MyMusicPageInner() {
 
       {/* Content */}
       <main className="flex-1 py-12 min-w-0 flex flex-col">
-        {view === "home" && <StudioHome tracks={tracks} albums={albums} sessions={sessions} onNavigate={setView} />}
+        {view === "home" && <StudioHome tracks={tracks} albums={albums} sessions={sessions} onNavigate={navigateTo} token={token ?? ""} />}
         {(view === "tracks" || view === "upload" || view === "edit-track") && (
           <div className="relative min-h-full">
             <div className={`transition-all duration-500 ${view === "upload" || view === "edit-track" ? "blur-sm pointer-events-none select-none" : ""}`}>
@@ -1128,15 +1138,35 @@ function getTimeSaying(h: number) {
   return TIME_SAYINGS.find((s) => h >= s.from && h < s.to)?.saying ?? "";
 }
 
-function StudioHome({ tracks, albums, sessions, onNavigate }: {
+function StudioHome({ tracks, albums, sessions, onNavigate, token }: {
   tracks: Track[]; albums: Album[]; sessions: LiveEvent[];
-  onNavigate: (v: "tracks" | "albums" | "sessions") => void;
+  onNavigate: (v: "tracks" | "albums" | "sessions" | "profile") => void;
+  token: string;
 }) {
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
+
+  type RecapData = { recap: string; sessions: { eventId: number; title: string; trackRecap: string | null }[] };
+  const [recap, setRecap] = useState<RecapData | null>(null);
+  const [recapLoading, setRecapLoading] = useState(false);
+  const [recapError, setRecapError] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [expandedSettled, setExpandedSettled] = useState(true);
+  const [expandedSession, setExpandedSession] = useState<number | null>(null);
+  const recapFetched = useRef(false);
+
+  useEffect(() => {
+    if (recapFetched.current || !token) return;
+    recapFetched.current = true;
+    setRecapLoading(true);
+    getArtistRecap(token)
+      .then(setRecap)
+      .catch((e) => { console.error("[artist-recap]", e); setRecapError(true); })
+      .finally(() => setRecapLoading(false));
+  }, [token]);
 
   const h = now.getHours();
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
@@ -1147,7 +1177,8 @@ function StudioHome({ tracks, albums, sessions, onNavigate }: {
     <div className="pt-0 select-none">
       <p className="text-[10px] tracking-[0.3em] uppercase text-white/35 mb-1">{dateStr}</p>
       <p className="font-mono text-3xl text-white/50 mb-1 tracking-tight">{timeStr}</p>
-      <p className="text-[10px] tracking-[0.25em] uppercase text-white/25 mb-20">{saying}</p>
+      <p className="text-[10px] tracking-[0.25em] uppercase text-white/25 mb-10">{saying}</p>
+
       <div className="space-y-px">
         {([
           { num: String(tracks.length).padStart(2, "0"), label: "tracks", action: () => onNavigate("tracks") },
@@ -1160,6 +1191,52 @@ function StudioHome({ tracks, albums, sessions, onNavigate }: {
             <span className="text-sm tracking-widest uppercase text-white/40 group-hover:text-white/80 transition-colors duration-300">{label}</span>
           </button>
         ))}
+        <button onClick={() => onNavigate("profile")}
+          className="flex items-baseline gap-5 w-full group py-2 text-left">
+          <span className="w-6 shrink-0" />
+          <span className="text-sm tracking-widest uppercase text-white/40 group-hover:text-white/80 transition-colors duration-300">Profile</span>
+        </button>
+      </div>
+
+      {/* From the sessions */}
+      <div className="mt-16 max-w-sm">
+        <p className="text-[10px] tracking-[0.3em] uppercase text-white/20 mb-4">From the sessions</p>
+        {recapLoading && (
+          <p className="text-xs text-white/20 italic">Reading your sessions…</p>
+        )}
+        {recapError && (
+          <p className="text-xs text-white/15">Unavailable right now.</p>
+        )}
+        {recap && !recapLoading && (
+          <div>
+            <div className="relative overflow-hidden" style={{
+              maxHeight: expanded ? "30em" : "6em",
+              transition: "max-height 0.5s cubic-bezier(0.4,0,0.2,1)",
+              maskImage: (!expanded && expandedSettled) ? "linear-gradient(to bottom, black 55%, transparent 100%)" : "none",
+              WebkitMaskImage: (!expanded && expandedSettled) ? "linear-gradient(to bottom, black 55%, transparent 100%)" : "none",
+            }}>
+              <div className="space-y-3">
+                {recap.recap.replace(/^#+\s*/gm, "").split(/\n\n+/).filter(p => p.trim()).map((para, i) => (
+                  <p key={i} className="text-sm text-white/40 leading-relaxed">
+                    {para.split(/\*\*(.+?)\*\*/).map((part, j) =>
+                      j % 2 === 1
+                        ? <span key={j} className="text-white/70 font-medium">{part}</span>
+                        : part
+                    )}
+                  </p>
+                ))}
+              </div>
+            </div>
+            <button
+              onClick={() => { setExpandedSettled(false); setExpanded(e => !e); setTimeout(() => setExpandedSettled(true), 500); }}
+              className="mt-2 text-xs text-white/25 hover:text-white/55 transition-colors"
+            >
+              <span key={String(expanded)} style={{ animation: "listReveal 0.4s cubic-bezier(0.4,0,0.2,1) forwards", display: "inline-block" }}>
+                {expanded ? "Show less" : "Read more"}
+              </span>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

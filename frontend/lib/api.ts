@@ -294,6 +294,15 @@ export const getEventComments = (eventId: number, eventTrackId: number) =>
   fetchApi<EventComment[]>(`/api/events/${eventId}/comments/${eventTrackId}`);
 
 // ── AI ────────────────────────────────────────────────────────────────────────
+export const getArtistRecap = (token: string) =>
+  fetchApi<{
+    recap: string;
+    sessions: { eventId: number; title: string; trackRecap: string | null }[];
+  }>(`/api/ai/artist-recap`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+
 export const getEventSummary = (eventId: number) =>
   fetchApi<{ summary: string | null; generatedAt: string | null; hasNewComments: boolean }>(
     `/api/ai/event-summary/${eventId}`

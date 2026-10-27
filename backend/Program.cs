@@ -90,6 +90,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddSingleton<EventSummaryService>();
+builder.Services.AddScoped<ArtistRecapService>();
 builder.Services.AddControllers()
     .AddJsonOptions(o =>
         o.JsonSerializerOptions.Converters.Add(new Backend.Infrastructure.UtcDateTimeConverter()));
