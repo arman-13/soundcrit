@@ -1229,7 +1229,7 @@ function StudioHome({ tracks, albums, sessions, onNavigate, token }: {
         {recap && !recapLoading && (
           <div>
             <div className="relative overflow-hidden" style={{
-              maxHeight: expanded ? "30em" : "6em",
+              maxHeight: expanded ? "200em" : "6em",
               transition: "max-height 0.5s cubic-bezier(0.4,0,0.2,1)",
               maskImage: (!expanded && expandedSettled) ? "linear-gradient(to bottom, black 55%, transparent 100%)" : "none",
               WebkitMaskImage: (!expanded && expandedSettled) ? "linear-gradient(to bottom, black 55%, transparent 100%)" : "none",
