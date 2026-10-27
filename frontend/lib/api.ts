@@ -295,12 +295,15 @@ export const getEventComments = (eventId: number, eventTrackId: number) =>
 
 // ── AI ────────────────────────────────────────────────────────────────────────
 export const getArtistRecap = (token: string) =>
-  fetchApi<{
-    recap: string;
-    sessions: { eventId: number; title: string; trackRecap: string | null }[];
-  }>(`/api/ai/artist-recap`, {
+  fetchApi<{ recap: string | null; generatedAt: string | null }>(`/api/ai/artist-recap`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
+  });
+
+export const generateArtistRecap = (token: string) =>
+  fetchApi<{ recap: string; generatedAt: string }>(`/api/ai/artist-recap/generate`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
   });
 
 export const getEventSummary = (eventId: number) =>

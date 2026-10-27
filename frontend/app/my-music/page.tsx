@@ -7,7 +7,7 @@ import {
   getAllTracksAdmin, deleteTrack, updateTrack,
   getMyAlbums, createAlbum, updateAlbum, deleteAlbum,
   createTrack, addTrackToAlbum, getAlbum, removeTrackFromAlbum, reorderAlbumTracks,
-  getEvents, createEvent, deleteEvent, updateEvent, getArtistRecap,
+  getEvents, createEvent, deleteEvent, updateEvent, getArtistRecap, generateArtistRecap,
 } from "@/lib/api";
 import { Album, AlbumTrackDto, Track, LiveEvent } from "@/types";
 import Image from "next/image";
@@ -43,11 +43,13 @@ function MyMusicPageInner() {
     setSidebarRevealed(true);
   }, []);
   const [tracks, setTracks] = useState<Track[]>([]);
+  const [tracksLoading, setTracksLoading] = useState(true);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [busy, setBusy] = useState(false);
   const [sessions, setSessions] = useState<LiveEvent[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
   const [sessionForm, setSessionForm] = useState({ title: "", description: "", coverImageUrl: "", scheduledAt: "" });
   const [sessionBusy, setSessionBusy] = useState(false);
   const [sessionError, setSessionError] = useState("");
@@ -93,8 +95,9 @@ function MyMusicPageInner() {
         if (cancelled) return;
         setTracks(trackPage.data);
         setAlbums(albumList);
+        setTracksLoading(false);
       })
-      .catch(() => {});
+      .catch(() => { setTracksLoading(false); });
     return () => { cancelled = true; };
   }, [token]);
 
@@ -103,7 +106,7 @@ function MyMusicPageInner() {
     try {
       const all = await getEvents();
       setSessions(all.filter((e) => e.hostId === user.id).sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()));
-    } catch {}
+    } catch {} finally { setSessionsLoading(false); }
   }, [token, user]);
 
   useEffect(() => { loadSessions(); }, [loadSessions]);
@@ -242,7 +245,7 @@ function MyMusicPageInner() {
         {view === "home" && <StudioHome tracks={tracks} albums={albums} sessions={sessions} onNavigate={navigateTo} token={token ?? ""} />}
         {(view === "tracks" || view === "upload" || view === "edit-track") && (
           <div className="relative min-h-full">
-            <div className={`transition-all duration-500 ${view === "upload" || view === "edit-track" ? "blur-sm pointer-events-none select-none" : ""}`}>
+            <div key={view === "tracks" ? "tracks-enter" : "tracks-blur"} className={`transition-all duration-500 ${view === "upload" || view === "edit-track" ? "blur-sm pointer-events-none select-none" : ""}`}>
               <TracksView
                 tracks={tracks}
                 onEdit={(t) => { setEditingTrack(t); setView("edit-track"); }}
@@ -354,11 +357,11 @@ function MyMusicPageInner() {
 
         {(view === "sessions" || view === "create-session" || view === "edit-session") && (
           <div className="relative min-h-full">
-            <div className={`transition-all duration-500 ${view === "create-session" || view === "edit-session" ? "blur-sm pointer-events-none select-none" : ""}`}>
+            <div key={view === "sessions" ? "sessions-enter" : "sessions-blur"} className={`transition-all duration-500 ${view === "create-session" || view === "edit-session" ? "blur-sm pointer-events-none select-none" : ""}`}>
               <div className="space-y-1">
                 {sessions.length === 0 && <p className="text-sm text-white/25">No sessions yet.</p>}
-                {sessions.map((ev) => (
-                  <div key={ev.id} className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-white/5 group">
+                {sessions.map((ev, i) => (
+                  <div key={ev.id} style={{ animationDelay: `${i * 40}ms` }} className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-white/5 group opacity-0 animate-[listReveal_0.25s_ease_forwards]">
                     <div className="relative w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5">
                       {ev.coverImageUrl && <Image src={ev.coverImageUrl} alt={ev.title} fill className="object-cover opacity-70" />}
                     </div>
@@ -550,8 +553,8 @@ function TracksView({ tracks, onEdit, onDelete, onToggle, onUpload }: {
         <p className="text-white/30 text-sm">No tracks yet.</p>
       ) : (
         <div className="space-y-1">
-          {tracks.map((t) => (
-            <div key={t.id} className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-white/5 group">
+          {tracks.map((t, i) => (
+            <div key={t.id} style={{ animationDelay: `${i * 40}ms` }} className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-white/5 group opacity-0 animate-[listReveal_0.25s_ease_forwards]">
               <div className="relative w-10 h-10 rounded overflow-hidden shrink-0 bg-white/5">
                 {t.coverImageUrl && <Image src={t.coverImageUrl} alt={t.title} fill className="object-cover opacity-70" />}
               </div>
@@ -1149,24 +1152,28 @@ function StudioHome({ tracks, albums, sessions, onNavigate, token }: {
     return () => clearInterval(id);
   }, []);
 
-  type RecapData = { recap: string; sessions: { eventId: number; title: string; trackRecap: string | null }[] };
-  const [recap, setRecap] = useState<RecapData | null>(null);
-  const [recapLoading, setRecapLoading] = useState(false);
+  const [recap, setRecap] = useState<string | null>(null);
+  const [recapLoading, setRecapLoading] = useState(true);
   const [recapError, setRecapError] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [expandedSettled, setExpandedSettled] = useState(true);
-  const [expandedSession, setExpandedSession] = useState<number | null>(null);
-  const recapFetched = useRef(false);
-
   useEffect(() => {
-    if (recapFetched.current || !token) return;
-    recapFetched.current = true;
-    setRecapLoading(true);
+    if (!token) return;
     getArtistRecap(token)
-      .then(setRecap)
-      .catch((e) => { console.error("[artist-recap]", e); setRecapError(true); })
+      .then((data) => setRecap(data.recap ?? null))
+      .catch(() => {})
       .finally(() => setRecapLoading(false));
   }, [token]);
+
+  const generateRecap = () => {
+    if (!token || recapLoading) return;
+    setRecapLoading(true);
+    setRecapError(false);
+    generateArtistRecap(token)
+      .then((data) => setRecap(data.recap))
+      .catch((e) => { console.error("[artist-recap]", e); setRecapError(true); })
+      .finally(() => setRecapLoading(false));
+  };
 
   const h = now.getHours();
   const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
@@ -1200,12 +1207,24 @@ function StudioHome({ tracks, albums, sessions, onNavigate, token }: {
 
       {/* From the sessions */}
       <div className="mt-16 max-w-sm">
-        <p className="text-[10px] tracking-[0.3em] uppercase text-white/20 mb-4">From the sessions</p>
+        <div className="flex items-center gap-4 mb-4">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-white/20">From the sessions</p>
+          {recap && !recapLoading && (
+            <button onClick={generateRecap} className="text-[10px] tracking-widest uppercase text-white/15 hover:text-white/40 transition-colors">
+              Regenerate
+            </button>
+          )}
+        </div>
         {recapLoading && (
           <p className="text-xs text-white/20 italic">Reading your sessions…</p>
         )}
-        {recapError && (
+        {recapError && !recapLoading && (
           <p className="text-xs text-white/15">Unavailable right now.</p>
+        )}
+        {!recap && !recapLoading && (
+          <button onClick={generateRecap} className="text-xs text-white/25 hover:text-white/55 transition-colors tracking-wide">
+            Generate recap
+          </button>
         )}
         {recap && !recapLoading && (
           <div>
@@ -1216,7 +1235,7 @@ function StudioHome({ tracks, albums, sessions, onNavigate, token }: {
               WebkitMaskImage: (!expanded && expandedSettled) ? "linear-gradient(to bottom, black 55%, transparent 100%)" : "none",
             }}>
               <div className="space-y-3">
-                {recap.recap.replace(/^#+\s*/gm, "").split(/\n\n+/).filter(p => p.trim()).map((para, i) => (
+                {recap.replace(/^#+\s*/gm, "").split(/\n\n+/).filter(p => p.trim()).map((para, i) => (
                   <p key={i} className="text-sm text-white/40 leading-relaxed">
                     {para.split(/\*\*(.+?)\*\*/).map((part, j) =>
                       j % 2 === 1

@@ -40,7 +40,7 @@ public class AiController : ControllerBase
         });
     }
 
-    // Artist recap — personalized summary of comments on the artist's tracks across recent sessions
+    // Returns saved recap (no LLM call)
     [Authorize]
     [HttpGet("artist-recap")]
     public async Task<IActionResult> GetArtistRecap()
@@ -48,17 +48,29 @@ public class AiController : ControllerBase
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (userId is null) return Unauthorized();
 
+        var user = await _db.Users.FindAsync(userId);
+        if (user?.ArtistRecap is null) return Ok(new { recap = (string?)null, generatedAt = (DateTime?)null });
+
+        return Ok(new { recap = user.ArtistRecap, generatedAt = user.ArtistRecapGeneratedAt });
+    }
+
+    // Generates a fresh recap and saves it to the user record
+    [Authorize]
+    [HttpPost("artist-recap/generate")]
+    public async Task<IActionResult> GenerateArtistRecap()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is null) return Unauthorized();
+
         var result = await _recap.GenerateRecapAsync(userId);
-        return Ok(new
-        {
-            recap    = result.Combined,
-            sessions = result.Sessions.Select(s => new
-            {
-                eventId    = s.EventId,
-                title      = s.Title,
-                trackRecap = s.TrackRecap,
-            }),
-        });
+
+        var user = await _db.Users.FindAsync(userId);
+        if (user is null) return Unauthorized();
+        user.ArtistRecap = result.Combined;
+        user.ArtistRecapGeneratedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { recap = result.Combined, generatedAt = user.ArtistRecapGeneratedAt });
     }
 
     // Triggers a fresh LLM generation — host only

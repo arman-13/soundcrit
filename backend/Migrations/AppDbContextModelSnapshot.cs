@@ -98,6 +98,12 @@ namespace backend.Migrations
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ArtistRecap")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("ArtistRecapGeneratedAt")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<string>("AvatarUrl")
                         .HasColumnType("text");
 
@@ -211,6 +217,12 @@ namespace backend.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AiSummary")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("AiSummaryGeneratedAt")
+                        .HasColumnType("timestamp without time zone");
+
                     b.Property<DateTime?>("CountdownStartedAt")
                         .HasColumnType("timestamp without time zone");
 
@@ -232,6 +244,9 @@ namespace backend.Migrations
                     b.Property<string>("HostId")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastCommentAt")
+                        .HasColumnType("timestamp without time zone");
 
                     b.Property<DateTime>("ScheduledAt")
                         .HasColumnType("timestamp without time zone");

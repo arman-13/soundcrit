@@ -29,10 +29,18 @@ export default function Header() {
 
   return (
     <header className="border-b border-white/[0.07] sticky top-0 z-40 backdrop-blur-xl bg-[#0a0a0a]/85">
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between relative">
         <Link href="/" className="text-sm font-semibold tracking-widest uppercase text-white/90 hover:text-white transition-colors">
           Soundcritic
         </Link>
+
+        {/* Current page name (mobile, centered) */}
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          className="md:hidden absolute left-1/2 -translate-x-1/2 text-sm tracking-wide text-white/70 hover:text-white transition-colors"
+        >
+          {navLinks.find((l) => pathname === l.href || (l.href !== "/" && pathname.startsWith(l.href + "/")))?.label ?? "Menu"}
+        </button>
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-8">
@@ -95,22 +103,13 @@ export default function Header() {
             </div>
           )}
 
-          {/* Hamburger */}
-          <button
-            onClick={() => setMenuOpen((o) => !o)}
-            className="md:hidden flex flex-col gap-1.5 p-1.5 text-white/60 hover:text-white transition-colors"
-            aria-label="Toggle menu"
-          >
-            <span className={`block w-5 h-px bg-current transition-transform origin-center ${menuOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
-            <span className={`block w-5 h-px bg-current transition-opacity ${menuOpen ? "opacity-0" : ""}`} />
-            <span className={`block w-5 h-px bg-current transition-transform origin-center ${menuOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
-          </button>
         </div>
       </div>
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden border-t border-white/8 bg-[#0a0a0a]/95 px-6 py-4 flex flex-col gap-1">
+        <div className="md:hidden absolute left-1/2 -translate-x-1/2 top-full z-50">
+        <div className="min-w-[120px] bg-[#0a0a0a]/60 backdrop-blur-xl px-4 pt-2 pb-3 flex flex-col items-center gap-1 rounded-b-lg animate-[listReveal_0.2s_ease_both]">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -137,6 +136,7 @@ export default function Header() {
               </>
             )}
           </div>
+        </div>
         </div>
       )}
     </header>
