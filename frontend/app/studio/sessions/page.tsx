@@ -1,13 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { getEvents } from "@/lib/api";
-import Link from "next/link";
-import EventCountdown from "./EventCountdown";
-import EventTimeLabel from "@/components/EventTimeLabel";
 import AutoRefresh from "@/components/AutoRefresh";
-import EventCardCover from "@/components/EventCardCover";
 import BackButton from "@/components/BackButton";
-import ParallaxCard from "@/components/ParallaxCard";
+import EventCard from "./EventCard";
 
 export default async function EventsPage() {
   let events: import("@/types").LiveEvent[] = [];
@@ -79,44 +75,3 @@ export default async function EventsPage() {
   );
 }
 
-function EventCard({ event }: { event: import("@/types").LiveEvent }) {
-  const isLive = event.status === "Live";
-  const isEnded = event.status === "Ended";
-
-  return (
-    <div className="max-w-4xl mx-auto px-6 mb-2">
-      <Link href={`/studio/sessions/${event.id}`} className="group relative block overflow-hidden rounded-lg">
-        {/* Background image */}
-        <EventCardCover
-          eventId={event.id}
-          coverImageUrl={event.coverImageUrl}
-          alt={event.title}
-          containerClassName="absolute inset-0"
-          className={`object-cover transition-all duration-700 ${isLive ? "opacity-40 group-hover:opacity-55" : "opacity-25 group-hover:opacity-40"}`}
-        />
-        {/* Left + right fade */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
-        {/* Bottom fade */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-        {/* Content */}
-        <ParallaxCard>
-          <div className="flex items-end justify-between gap-4">
-            <div className="min-w-0">
-              <h3 className="text-lg font-semibold tracking-widest uppercase text-white/85 group-hover:text-white transition-colors leading-tight mb-1">{event.title}</h3>
-              {event.description && (
-                <p className="text-sm text-white/38 leading-relaxed line-clamp-1 mb-2">{event.description}</p>
-              )}
-              <div className="flex items-center gap-3 text-xs text-white/25">
-                {event.trackCount > 0 && <span>{event.trackCount} tracks</span>}
-                {event.genres.length > 0 && <><span className="text-white/12">·</span><span>{event.genres.slice(0, 2).join(", ")}</span></>}
-                {isEnded && <><span className="text-white/12">·</span><span>{new Date(event.scheduledAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span></>}
-                {!isLive && !isEnded && <EventCountdown scheduledAt={event.scheduledAt} />}
-              </div>
-            </div>
-            <EventTimeLabel scheduledAt={event.scheduledAt} status={event.status} />
-          </div>
-        </ParallaxCard>
-      </Link>
-    </div>
-  );
-}

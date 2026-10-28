@@ -1,5 +1,7 @@
 "use client";
 
+// @ts-expect-error — ViewTransition is in React 19 canary, types lag behind
+import { ViewTransition } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getEventSync, getEventComments, postEventComment, getEvent } from "@/lib/api";
 import { useEventHub, HubTrack } from "@/hooks/useEventHub";
@@ -386,11 +388,14 @@ export default function EventLive({ event }: { event: LiveEventDetail }) {
             Hosting by {event.hostDisplayName}
           </p>
           <div className="relative">
-            <h1
-              onClick={joined ? () => setJoined(false) : undefined}
-              className={`font-semibold tracking-widest uppercase text-white leading-tight transition-colors ${joined ? "cursor-pointer hover:text-white/75" : ""}`}
-              style={{ fontSize: joined ? "1.25rem" : "2.25rem", opacity: joined ? 0.5 : 1, transition: "font-size 500ms ease, opacity 500ms ease" }}
-            >{event.title}</h1>
+            {/* @ts-expect-error — ViewTransition is in React 19 canary */}
+            <ViewTransition name={`session-title-${event.id}`}>
+              <h1
+                onClick={joined ? () => setJoined(false) : undefined}
+                className={`font-semibold tracking-widest uppercase text-white leading-tight transition-colors ${joined ? "cursor-pointer hover:text-white/75" : ""}`}
+                style={{ fontSize: joined ? "1.25rem" : "2.25rem", opacity: joined ? 0.5 : 1, transition: "font-size 500ms ease, opacity 500ms ease" }}
+              >{event.title}</h1>
+            </ViewTransition>
             <div className="absolute top-0 right-0 flex gap-2 items-center">
               {!joined && (
                 <button onClick={() => setJoined(true)}

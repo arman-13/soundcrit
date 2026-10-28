@@ -1,5 +1,7 @@
 "use client";
 
+// @ts-expect-error — ViewTransition is in React 19 canary, types lag behind
+import { ViewTransition } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import { submitJoinRequest, getEventRequests, updateRequestStatus, getAllTracksAdmin, submitEventTrack, getMyEventRequest, getEventTracks, updateEventTrack, reorderEventTracks, deleteEventTrack, getEvent, updateEvent } from "@/lib/api";
@@ -276,12 +278,15 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
             ) : `Hosting by ${event.hostDisplayName}`}
           </p>
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            <h1
-              onClick={(joinOpen || submitOpen) ? () => { setJoinOpen(false); setSubmitOpen(false); setSubmitMode(null); } : undefined}
-              className={`text-3xl md:text-4xl font-semibold tracking-widest uppercase text-white leading-tight transition-colors ${(joinOpen || submitOpen) ? "cursor-pointer hover:text-white/75" : ""}`}
-            >
-              {event.title}
-            </h1>
+            {/* @ts-expect-error — ViewTransition is in React 19 canary */}
+            <ViewTransition name={`session-title-${event.id}`}>
+              <h1
+                onClick={(joinOpen || submitOpen) ? () => { setJoinOpen(false); setSubmitOpen(false); setSubmitMode(null); } : undefined}
+                className={`text-3xl md:text-4xl font-semibold tracking-widest uppercase text-white leading-tight transition-colors ${(joinOpen || submitOpen) ? "cursor-pointer hover:text-white/75" : ""}`}
+              >
+                {event.title}
+              </h1>
+            </ViewTransition>
             {/* Action buttons */}
             <div className="flex gap-2 items-center">
               {/* Not logged in */}
