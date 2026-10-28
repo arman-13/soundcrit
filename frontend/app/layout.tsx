@@ -6,6 +6,7 @@ import Footer from "@/components/Footer";
 import AudioPlayer from "@/components/AudioPlayer";
 import { AudioPlayerProvider } from "@/lib/AudioPlayerContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import NavigationGuard from "@/components/NavigationGuard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,6 +34,7 @@ export default function RootLayout({
         <AuthProvider>
           <AudioPlayerProvider>
             <Header />
+            <NavigationGuard />
             <main className="flex-1 pb-20">{children}</main>
             <Footer />
             <AudioPlayer />
