@@ -68,9 +68,7 @@ function MyMusicPageInner() {
     setProfileForm({ displayName: user.displayName, bio: user.bio ?? "", avatarUrl: user.avatarUrl ?? "" });
   }
 
-  useEffect(() => {
-    if (!loading && !user) router.push("/login");
-  }, [user, loading, router]);
+  // No redirect — logged-out users see the guest studio view
 
   const loadTracks = useCallback(async () => {
     if (!token) return;
@@ -203,7 +201,8 @@ function MyMusicPageInner() {
     loadTracks();
   };
 
-  if (loading || !user) return null;
+  if (loading) return null;
+  if (!user) return <GuestStudio />;
 
   return (
     <div className="min-h-screen">
@@ -1139,6 +1138,39 @@ const TIME_SAYINGS: { from: number; to: number; saying: string }[] = [
 
 function getTimeSaying(h: number) {
   return TIME_SAYINGS.find((s) => h >= s.from && h < s.to)?.saying ?? "";
+}
+
+function GuestStudio() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const h = now.getHours();
+  const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const saying = getTimeSaying(h);
+  const dateStr = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+  return (
+    <div className="min-h-screen">
+      <div className="max-w-6xl mx-auto px-6 flex">
+        <div className="w-44 shrink-0" />
+        <div className="flex-1 py-12 min-w-0">
+          <p className="text-[10px] tracking-[0.3em] uppercase text-white/35 mb-1">{dateStr}</p>
+          <p className="font-mono text-3xl text-white/50 mb-1 tracking-tight">{timeStr}</p>
+          <p className="text-[10px] tracking-[0.25em] uppercase text-white/25 mb-10">{saying}</p>
+
+          <p className="text-sm text-white/30 mb-6 max-w-xs leading-relaxed">
+            Your studio is where your tracks live, sessions are made, and your sound gets its story.
+          </p>
+          <Link href="/login?returnTo=/my-music" className="inline-block text-sm tracking-widest uppercase text-white/50 hover:text-white/90 border border-white/15 hover:border-white/40 px-5 py-2.5 rounded transition-colors">
+            Sign in
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function StudioHome({ tracks, albums, sessions, onNavigate, token }: {

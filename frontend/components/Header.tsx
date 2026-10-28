@@ -9,6 +9,7 @@ import { useState } from "react";
 const publicLinks = [
   { href: "/", label: "Home" },
   { href: "/studio/sessions", label: "Sessions" },
+  { href: "/my-music", label: "Studio" },
 ];
 
 export default function Header() {
@@ -23,9 +24,7 @@ export default function Header() {
     setMenuOpen(false);
   };
 
-  const navLinks = user
-    ? [...publicLinks, { href: "/my-music", label: "Studio" }]
-    : publicLinks;
+  const navLinks = publicLinks;
 
   return (
     <header className="border-b border-white/[0.07] sticky top-0 z-40 backdrop-blur-xl bg-[#0a0a0a]/85">

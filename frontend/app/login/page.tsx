@@ -22,7 +22,8 @@ function LoginForm() {
     setLoading(true);
     try {
       await login(email, password);
-      router.push("/");
+      const returnTo = searchParams.get("returnTo");
+      router.push(returnTo ?? "/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
