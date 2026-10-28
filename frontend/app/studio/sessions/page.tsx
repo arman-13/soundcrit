@@ -14,10 +14,9 @@ export default async function EventsPage() {
   const ended = events.filter((e) => e.status === "Ended").sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
 
   return (
-    <div className="pt-14 pb-20">
+    <div className="pt-14 pb-20" style={{ animation: "fadeIn 0.4s ease both" }}>
       <AutoRefresh intervalMs={15000} />
       <BackButton />
-      {/* LIVE NOW */}
       {live.length === 0 && upcoming.length > 0 && (
         <div className="max-w-4xl mx-auto px-6 mb-8">
           <p className="text-xs tracking-widest uppercase text-white/30">No live sessions</p>
@@ -30,14 +29,10 @@ export default async function EventsPage() {
             <p className="text-xs tracking-widest uppercase text-red-400/80">Live Sessions</p>
           </div>
           <div>
-            {live.map((e) => (
-              <EventCard key={e.id} event={e} />
-            ))}
+            {live.map((e) => <EventCard key={e.id} event={e} />)}
           </div>
         </section>
       )}
-
-      {/* UPCOMING */}
       {live.length === 0 && upcoming.length === 0 && (
         <div className="max-w-4xl mx-auto px-6 mb-8">
           <p className="text-xs tracking-widest uppercase text-white/30">No upcoming sessions</p>
@@ -47,31 +42,23 @@ export default async function EventsPage() {
         <section className="mb-16">
           <p className="text-xs tracking-widest uppercase text-yellow-400/40 mb-4 max-w-4xl mx-auto px-6">Upcoming Sessions</p>
           <div>
-            {upcoming.map((e) => (
-              <EventCard key={e.id} event={e} />
-            ))}
+            {upcoming.map((e) => <EventCard key={e.id} event={e} />)}
           </div>
         </section>
       )}
-
-      {/* PAST */}
       {ended.length > 0 && (
         <section>
           <div className="max-w-4xl mx-auto px-6 mb-4">
             <p className="text-xs tracking-widest uppercase text-white/30">Past Sessions</p>
           </div>
           <div>
-            {ended.map((e) => (
-              <EventCard key={e.id} event={e} />
-            ))}
+            {ended.map((e) => <EventCard key={e.id} event={e} />)}
           </div>
         </section>
       )}
-
       {events.length === 0 && (
         <p className="text-sm text-white/25">No events yet.</p>
       )}
     </div>
   );
 }
-

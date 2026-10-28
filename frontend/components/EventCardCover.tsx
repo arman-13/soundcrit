@@ -2,6 +2,7 @@
 
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
 import Image from "next/image";
+import { useState } from "react";
 
 interface Props {
   eventId: number;
@@ -13,12 +14,18 @@ interface Props {
 
 export default function EventCardCover({ eventId, coverImageUrl, alt, className, containerClassName }: Props) {
   const { currentTrack, liveEventId, isCountdown } = useAudioPlayer();
+  const [loaded, setLoaded] = useState(false);
 
-  // Show the live track art only for the event currently playing, and not during countdown
   const isPlayingThisEvent = liveEventId === eventId && currentTrack !== null && !isCountdown;
   const displayUrl = isPlayingThisEvent ? currentTrack!.coverImageUrl : coverImageUrl;
 
   if (!displayUrl) return null;
+
+  // Strip transition-* from className until loaded so the image snaps to its
+  // target opacity instead of animating from full brightness on mount.
+  const cls = loaded
+    ? className
+    : (className ?? "").replace(/transition-\S+/g, "").replace(/duration-\S+/g, "").trim();
 
   return (
     <div className={containerClassName}>
@@ -27,7 +34,8 @@ export default function EventCardCover({ eventId, coverImageUrl, alt, className,
         src={displayUrl}
         alt={alt}
         fill
-        className={`${className} transition-opacity duration-700`}
+        className={cls}
+        onLoad={() => setLoaded(true)}
       />
     </div>
   );

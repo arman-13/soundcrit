@@ -25,7 +25,7 @@ export default async function HomePage() {
   const top5 = charted.slice(0, 5);
 
   return (
-    <div>
+    <div style={{ animation: "fadeIn 0.4s ease both" }}>
       <AutoRefresh intervalMs={15000} />
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-6 pt-14 pb-8">

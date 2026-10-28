@@ -14,7 +14,6 @@ export default function EventCard({ event }: { event: LiveEvent }) {
   return (
     <div className="max-w-4xl mx-auto px-6 mb-2">
       <Link href={`/studio/sessions/${event.id}`} className="group relative block overflow-hidden rounded-lg">
-        {/* Background image */}
         <div className="absolute inset-0">
           <EventCardCover
             eventId={event.id}
@@ -24,11 +23,8 @@ export default function EventCard({ event }: { event: LiveEvent }) {
             className={`object-cover transition-all duration-700 ${isLive ? "opacity-40 group-hover:opacity-55" : "opacity-25 group-hover:opacity-40"}`}
           />
         </div>
-        {/* Left + right fade */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#0a0a0a] via-transparent to-[#0a0a0a]" />
-        {/* Bottom fade */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-        {/* Content */}
         <ParallaxCard>
           <div className="flex items-end justify-between gap-4">
             <div className="min-w-0">

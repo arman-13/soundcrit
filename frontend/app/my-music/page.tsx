@@ -205,7 +205,7 @@ function MyMusicPageInner() {
   if (!user) return <GuestStudio />;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" style={{ animation: "fadeIn 0.4s ease both" }}>
       <div className="max-w-6xl mx-auto px-6 flex">
       {/* Sidebar */}
       <aside className={`w-44 shrink-0 pt-12 pr-8 flex flex-col gap-1 transition-opacity duration-500 ${!sidebarRevealed ? "opacity-0 pointer-events-none" : "opacity-100"}`}>

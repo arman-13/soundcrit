@@ -236,7 +236,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
   };
 
   const bgImage = (
-    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, animation: "fadeIn 0.8s ease both" }}>
       <div className={`absolute inset-0 duration-500 ${imageBlurred ? "blur-sm" : ""}`} style={{ transition: "filter 500ms ease, transform 500ms ease", transform: imageBlurred ? "scale(1.02)" : "scale(1)", willChange: "filter, transform" }}>
         {coverUrl ? (
           <Image src={coverUrl} alt="" fill className="object-cover" priority />
@@ -266,7 +266,7 @@ function EventUpcomingInner({ event, onEventStarted, onTrackSubmittedRef }: { ev
         </div>
       )}
 
-      <div className="relative min-h-[calc(100vh-4rem)] flex flex-col pt-12 pb-28" style={{ zIndex: 1 }}>
+      <div className="relative min-h-[calc(100vh-4rem)] flex flex-col pt-12 pb-28" style={{ zIndex: 1, animation: "fadeIn 0.5s ease both" }}>
 
         {/* ── Persistent header ── */}
         <div className="max-w-6xl mx-auto px-6 w-full mb-7">

@@ -166,7 +166,7 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
 
   // ── Shared background image ──────────────────────────────────────────────
   const bgImage = (
-    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+    <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 0, animation: "fadeIn 0.8s ease both" }}>
       <div className={`absolute inset-0 duration-500 ${imageBlurred ? "blur-sm" : ""}`} style={{ transition: "filter 500ms ease, transform 500ms ease", transform: imageBlurred ? "scale(1.02)" : "scale(1)", willChange: "filter, transform" }}>
         {coverUrl ? (
           <Image src={coverUrl} alt="" fill className="object-cover" priority />
@@ -186,7 +186,7 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
   return (
     <div className="relative min-h-[calc(100vh-4rem)]">
       {bgImage}
-      <div className="relative min-h-[calc(100vh-4rem)] flex flex-col pt-12 pb-28" style={{ zIndex: 1 }}>
+      <div className="relative min-h-[calc(100vh-4rem)] flex flex-col pt-12 pb-28" style={{ zIndex: 1, animation: "fadeIn 0.5s ease both" }}>
 
         {/* ── Persistent header ── */}
         <div
