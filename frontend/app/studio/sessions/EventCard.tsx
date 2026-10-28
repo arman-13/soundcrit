@@ -1,7 +1,5 @@
 "use client";
 
-// @ts-expect-error — ViewTransition is in React 19 canary, types lag behind
-import { ViewTransition } from "react";
 import Link from "next/link";
 import EventCardCover from "@/components/EventCardCover";
 import EventTimeLabel from "@/components/EventTimeLabel";
@@ -34,11 +32,9 @@ export default function EventCard({ event }: { event: LiveEvent }) {
         <ParallaxCard>
           <div className="flex items-end justify-between gap-4">
             <div className="min-w-0">
-              <ViewTransition name={`session-title-${event.id}`}>
-                <h3 className="text-lg font-semibold tracking-widest uppercase text-white/85 group-hover:text-white transition-colors leading-tight mb-1">
-                  {event.title}
-                </h3>
-              </ViewTransition>
+              <h3 className="text-lg font-semibold tracking-widest uppercase text-white/85 group-hover:text-white transition-colors leading-tight mb-1">
+                {event.title}
+              </h3>
               {event.description && (
                 <p className="text-sm text-white/38 leading-relaxed line-clamp-1 mb-2">{event.description}</p>
               )}

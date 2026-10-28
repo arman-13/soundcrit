@@ -1,7 +1,5 @@
 "use client";
 
-// @ts-expect-error — ViewTransition is in React 19 canary, types lag behind
-import { ViewTransition } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getEventComments, postEventComment, getEventSummary, regenerateEventSummary } from "@/lib/api";
 import { useAudioPlayer } from "@/lib/AudioPlayerContext";
@@ -200,13 +198,10 @@ export default function EventEnded({ event }: { event: LiveEventDetail }) {
             )}
           </p>
           <div className="flex items-center justify-between gap-4 flex-wrap">
-            {/* @ts-expect-error — ViewTransition is in React 19 canary */}
-            <ViewTransition name={`session-title-${event.id}`}>
               <h1
                 onClick={mode !== null ? () => transitionTo(null) : undefined}
                 className={`text-3xl md:text-4xl font-semibold tracking-widest uppercase text-white leading-tight transition-colors ${mode !== null ? "cursor-pointer hover:text-white/75" : ""}`}
               >{event.title}</h1>
-            </ViewTransition>
             {(mode === null || mode === "relive") && (
               <div className="flex gap-2 items-center">
                 <button onClick={() => transitionTo("explore")}
