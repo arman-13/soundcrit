@@ -8,7 +8,6 @@ import CyclingSubtitle from "@/components/CyclingSubtitle";
 import AlbumCard from "@/components/AlbumCard";
 import EventCardCover from "@/components/EventCardCover";
 import EventTimeLabel from "@/components/EventTimeLabel";
-import Image from "next/image";
 import Link from "next/link";
 
 export default async function HomePage() {

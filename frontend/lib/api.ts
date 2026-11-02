@@ -130,6 +130,9 @@ export const removeTrackFromAlbum = (albumId: number, trackId: number, token: st
   });
 
 // ── Artist (public) ───────────────────────────────────────────────────────────
+export const getArtists = (take = 20) =>
+  fetchApi<PublicUserDto[]>(`/api/users/artists?take=${take}`);
+
 export const getArtistProfile = (name: string) =>
   fetchApi<PublicUserDto>(`/api/users/${encodeURIComponent(name)}`);
 

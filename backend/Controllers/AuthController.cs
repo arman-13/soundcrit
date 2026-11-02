@@ -122,6 +122,23 @@ public class AuthController : ControllerBase
         return Ok(users.Select(u => new PublicUserDto(u.Id, u.UserName!, u.DisplayName, u.AvatarUrl, u.Bio)));
     }
 
+    [HttpGet("/api/users/artists")]
+    public async Task<ActionResult<IEnumerable<PublicUserDto>>> GetArtists([FromQuery] int take = 20)
+    {
+        var artistIds = await _db.Tracks
+            .Where(t => t.IsPublished && t.ArtistId != null)
+            .Select(t => t.ArtistId!)
+            .Distinct()
+            .ToListAsync();
+
+        var users = await _userManager.Users
+            .Where(u => artistIds.Contains(u.Id))
+            .Take(take)
+            .ToListAsync();
+
+        return Ok(users.Select(u => new PublicUserDto(u.Id, u.UserName!, u.DisplayName, u.AvatarUrl, u.Bio)));
+    }
+
     [HttpPost("verify-email")]
     public async Task<ActionResult> VerifyEmail(VerifyEmailRequest req)
     {
