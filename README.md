@@ -35,7 +35,7 @@ content-platform/
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Node.js 20+](https://nodejs.org)
 - [PostgreSQL 15+](https://www.postgresql.org)
 - [dotnet-ef tool](https://learn.microsoft.com/en-us/ef/core/cli/dotnet)
@@ -54,19 +54,37 @@ psql -U postgres -c "CREATE DATABASE content_platform;"
 
 ### 2. Backend
 
+Create `backend/appsettings.Development.json` by copying the template:
+
 ```bash
 cd backend
+cp appsettings.Development.json.example appsettings.Development.json
+```
 
-# Update connection string in appsettings.Development.json if needed
-# Default: Host=localhost;Port=5432;Database=content_platform;Username=postgres;Password=postgres
+Fill in the values it lists. Two are required or the app will refuse to start:
 
+| Setting | Notes |
+| --- | --- |
+| `ConnectionStrings:DefaultConnection` | Default local value: `Host=localhost;Port=5432;Database=content_platform;Username=postgres;Password=postgres` |
+| `Jwt:Key` | Any random string of at least 32 bytes. Generate one with `openssl rand -base64 48` |
+
+The remaining settings (Supabase, Cloudinary, Resend) are only needed for the
+features that use them: audio upload, image upload, and transactional email.
+
+This file is gitignored. Never commit real values to it. In deployed
+environments every setting comes from environment variables instead, using
+`__` for nesting, so `Jwt:Key` becomes `Jwt__Key`.
+
+```bash
 dotnet run
 ```
 
 The API will be available at `http://localhost:5000`.  
 Swagger UI: `http://localhost:5000/swagger`
 
-EF Core migrations run automatically on startup via `db.Database.Migrate()`.
+Migrations are **not** applied automatically. After pulling changes that add a
+migration, run `dotnet ef database update` (see the migration commands below)
+before starting the app, or entity queries will fail on the missing columns.
 
 ### 3. Frontend
 
@@ -85,7 +103,7 @@ The app will be available at `http://localhost:3000`.
 ```bash
 cd backend
 
-# Install the EF CLI tool (requires .NET 8)
+# Install the EF CLI tool (requires .NET 10)
 dotnet tool install --global dotnet-ef --version 8.*
 
 # Create a new migration
