@@ -27,6 +27,10 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <PackageReference Include="Resend" Version="0.5.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.1" />
+    <!-- Pinned, not used directly: CloudinaryDotNet pulls in 9.0.0, which carries a
+         high-severity advisory (GHSA-846f-f764-76mx). Remove once that package ships
+         a transitive reference to a patched build. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.9.0" />
     <PackageReference Include="TagLibSharp" Version="2.3.0" />
   </ItemGroup>
