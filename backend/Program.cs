@@ -32,8 +32,23 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 // JWT
 // Fail fast with a readable message: a missing key previously surfaced as a
 // NullReferenceException from deep inside the token handler at first login.
-var jwtKey = builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("Jwt:Key is not configured.");
+//
+// Blank and placeholder keys are rejected too, not just null. The example value
+// below shipped in appsettings.json and was copied verbatim into the production
+// Jwt__Key env var, so every token was signed with a secret that anyone reading
+// the repo could reproduce and use to forge a token for any account. A null
+// check alone did not catch that, because the key was present, just public.
+const string jwtPlaceholder = "your-super-secret-key-min-32-chars-long!!";
+var jwtKey = builder.Configuration["Jwt:Key"];
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException(
+        "Jwt:Key is not configured. Set the Jwt__Key environment variable to a random secret (openssl rand -base64 48).");
+if (jwtKey == jwtPlaceholder)
+    throw new InvalidOperationException(
+        "Jwt:Key is still the example placeholder. Set Jwt__Key to a real random secret (openssl rand -base64 48).");
+if (Encoding.UTF8.GetByteCount(jwtKey) < 32)
+    throw new InvalidOperationException(
+        "Jwt:Key must be at least 32 bytes for HMAC-SHA256 signing.");
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
