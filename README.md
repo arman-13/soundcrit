@@ -19,17 +19,64 @@ A full-stack content platform for articles, music, and video. Built with ASP.NET
 ```
 content-platform/
 ├── backend/          # ASP.NET Core Web API
-│   ├── Controllers/  # Articles, Tracks, Videos, Team
+│   ├── Controllers/  # Articles, Tracks, Videos, Team, AI
 │   ├── Data/         # AppDbContext + seed data
 │   ├── DTOs/         # PagedResponse<T>
 │   ├── Migrations/   # EF Core migrations
-│   └── Models/       # Article, Track, Video, TeamMember
+│   ├── Models/       # Article, Track, Video, TeamMember
+│   ├── Services/     # EventSummaryService, ArtistRecapService (Semantic Kernel agents)
+│   └── SoundcritMcp/ # Standalone MCP server exposing app data as tools for AI agents
 └── frontend/         # Next.js app
     ├── app/          # App Router pages
     ├── components/   # Header, Footer, AudioPlayer
     ├── lib/          # API client, AudioPlayerContext
     └── types/        # TypeScript interfaces
 ```
+
+---
+
+## AI Features
+
+Two separate AI integrations, built to solve different problems.
+
+### MCP Server (`backend/SoundcritMcp/`)
+
+A standalone server (stdio transport, [Model Context Protocol](https://modelcontextprotocol.io))
+that exposes this app's data as tools an AI agent can call directly — built so an agent like Claude
+can answer questions about the platform in natural language instead of someone writing one-off SQL
+or API calls by hand.
+
+| Tool | Returns |
+|---|---|
+| `get_track(id)` | Track title, artist, genre, mood, duration, play count |
+| `search_tracks(genre?, mood?)` | Published tracks matching the given filters, ranked by play count |
+| `get_event(eventId)` | Session metadata + ordered tracklist |
+| `get_event_comments(eventId)` | Audience comments for a session, grouped by track |
+| `get_artist_recap(userId)` | Raw session + comment data for an artist's recent tracks, for an agent to summarize itself |
+
+Run it:
+```bash
+cd backend/SoundcritMcp
+dotnet build
+```
+Then register it in Claude Desktop's or Claude Code's MCP config, pointing at the built executable,
+with `SOUNDCRIT_DB` set to a Postgres connection string.
+
+### AI-Generated Summaries (`backend/Services/`, Semantic Kernel)
+
+Separate from the MCP server above — this is an agent running *inside* the app, not a tool exposed to
+an outside one. Two features, both using a local LLM (Ollama + Llama 3.1) via
+[Semantic Kernel](https://github.com/microsoft/semantic-kernel):
+
+- **Event summary** (`EventSummaryService`) — after a session ends, the agent calls its own
+  `get_event`/`get_event_comments` plugin functions (auto function-calling, not hardcoded), then
+  writes a magazine-style recap of the session and how the audience reacted to each track.
+- **Artist recap** (`ArtistRecapService`) — pulls an artist's own recent tracks and the comments left
+  on them, then writes a direct, markdown-formatted recap grounded only in what was actually said.
+
+Both are wired through `AiController` (`/api/ai/*`): one endpoint returns the cached result, a
+separate authenticated endpoint triggers regeneration, so the LLM only runs on demand, not on every
+page load.
 
 ---
 
